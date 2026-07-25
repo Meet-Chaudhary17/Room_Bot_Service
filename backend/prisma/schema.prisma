@@ -1,0 +1,280 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum UserRole {
+  ADMIN
+  STAFF
+  STUDENT
+}
+
+enum Gender {
+  MALE
+  FEMALE
+  OTHER
+}
+
+enum StaffRole {
+  CLEANING
+  ELECTRICIAN
+  PLUMBER
+  CARPENTER
+  GENERAL
+}
+
+enum RequestStatus {
+  PENDING
+  ASSIGNED
+  IN_PROGRESS
+  OTP_PENDING
+  COMPLETED
+  CANCELLED
+  REJECTED
+}
+
+enum ComplaintStatus {
+  OPEN
+  IN_PROGRESS
+  RESOLVED
+  CLOSED
+}
+
+enum NotificationType {
+  INFO
+  SUCCESS
+  WARNING
+  ERROR
+}
+
+model Block {
+  id        String   @id @default(cuid())
+  name      String   @unique
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  students Student[]
+  staff    Staff[]
+
+  @@index([name])
+}
+
+model Admin {
+  id           String   @id @default(cuid())
+  username     String   @unique
+  email        String   @unique
+  passwordHash String
+  role         UserRole @default(ADMIN)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([username])
+  @@index([email])
+}
+
+model Student {
+  id             String  @id @default(cuid())
+  registrationNo String  @unique
+  name           String
+  email          String  @unique
+  phone          String? @unique @db.VarChar(15)
+  passwordHash   String
+
+  roomNumber String
+
+  gender Gender
+
+  isVerified Boolean @default(false)
+  isBlocked  Boolean @default(false)
+
+  blockId String
+  block   Block  @relation(fields: [blockId], references: [id], onDelete: Restrict)
+
+  requests      ServiceRequest[]
+  complaints    Complaint[]
+  feedbacks     Feedback[]
+  otpRecords    OtpVerification[]
+  notifications Notification[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([blockId])
+  @@index([registrationNo])
+  @@index([email])
+}
+
+model Staff {
+  id           String  @id @default(cuid())
+  employeeId   String  @unique
+  name         String
+  email        String  @unique
+  phone        String? @unique @db.VarChar(15)
+  passwordHash String
+
+  role StaffRole
+
+  isVerified Boolean @default(false)
+  isActive   Boolean @default(true)
+
+  blockId String
+  block   Block  @relation(fields: [blockId], references: [id], onDelete: Restrict)
+
+  assignedRequests ServiceRequest[]
+  feedbacks        Feedback[]
+  notifications    Notification[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([blockId])
+  @@index([role])
+}
+
+model ServiceType {
+  id          String  @id @default(cuid())
+  name        String  @unique
+  description String?
+  isActive    Boolean @default(true)
+
+  requests ServiceRequest[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([isActive])
+}
+
+model ServiceRequest {
+  id String @id @default(cuid())
+
+  title       String
+  description String
+
+  priority Int @default(1)
+
+  status RequestStatus @default(PENDING)
+
+  otpCode String? @db.VarChar(6)
+
+  otpVerifiedAt DateTime?
+
+  studentId String
+  student   Student @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+  staffId String?
+  staff   Staff?  @relation(fields: [staffId], references: [id], onDelete: SetNull)
+
+  serviceTypeId String
+  serviceType   ServiceType @relation(fields: [serviceTypeId], references: [id], onDelete: Restrict)
+
+  feedback Feedback?
+
+  assignedAt  DateTime?
+  startedAt   DateTime?
+  completedAt DateTime?
+  cancelledAt DateTime?
+
+  estimatedCompletionTime Int?
+
+  cancellationReason String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([studentId])
+  @@index([staffId])
+  @@index([serviceTypeId])
+  @@index([status])
+  @@index([priority])
+  @@index([createdAt])
+}
+
+model Complaint {
+  id          String @id @default(cuid())
+  subject     String
+  description String
+
+  status ComplaintStatus @default(OPEN)
+
+  studentId String
+  student   Student @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+  resolvedAt DateTime?
+
+  @@index([studentId])
+  @@index([status])
+}
+
+model Feedback {
+  id String @id @default(cuid())
+
+  rating Int @db.SmallInt
+
+  comment String?
+
+  studentId String
+  student   Student @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+  staffId String
+  staff   Staff  @relation(fields: [staffId], references: [id], onDelete: Cascade)
+
+  requestId String         @unique
+  request   ServiceRequest @relation(fields: [requestId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([studentId])
+  @@index([staffId])
+}
+
+model OtpVerification {
+  id String @id @default(cuid())
+
+  email String
+
+  otp String @db.VarChar(6)
+
+  expiresAt DateTime
+
+  verified Boolean @default(false)
+
+  studentId String?
+  student   Student? @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+
+  @@index([email])
+  @@index([expiresAt])
+}
+
+model Notification {
+  id String @id @default(cuid())
+
+  title   String
+  message String
+
+  type NotificationType @default(INFO)
+
+  isRead Boolean @default(false)
+
+  studentId String?
+  student   Student? @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+  staffId String?
+  staff   Staff?  @relation(fields: [staffId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+
+  @@index([studentId])
+  @@index([staffId])
+  @@index([isRead])
+}

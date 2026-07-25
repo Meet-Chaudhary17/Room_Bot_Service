@@ -1,0 +1,59 @@
+name: Room-Bot CI Pipeline
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: room_bot_service
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Install Dependencies
+        run: |
+          cd backend
+          npm ci
+
+      - name: Generate Prisma Client & Migrate
+        run: |
+          cd backend
+          npx prisma generate
+        env:
+          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/room_bot_service?schema=public
+
+      - name: Run Integration Tests
+        run: |
+          cd backend
+          npm test
+        env:
+          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/room_bot_service?schema=public
+          JWT_SECRET: dummyjwtsecretkeyvalue12345
+          SMTP_HOST: smtp.mailtrap.io
+          SMTP_PORT: 2525
+          SMTP_USER: dummyuser
+          SMTP_PASS: dummypass
