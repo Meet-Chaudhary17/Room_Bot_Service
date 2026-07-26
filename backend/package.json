@@ -7,7 +7,7 @@
   "scripts": {
     "dev": "nodemon src/server.js",
     "start": "node src/server.js",
-    "test": "node --test tests/student.test.js && node --test tests/staff.test.js && node --test tests/admin.test.js && node --test tests/socket.test.js",
+    "test": "node tests/student.test.js && node tests/staff.test.js && node tests/admin.test.js && node tests/socket.test.js",
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate dev",
     "prisma:studio": "prisma studio"
