@@ -71,6 +71,60 @@ export default function Home() {
             </div>
           </div>
         </section>
+
+        {/* Meet the Team Section */}
+        <section className="bg-white py-20 border-t border-slate-100">
+          <div className="max-w-7xl mx-auto px-6">
+            <div className="text-center mb-16">
+              <h2 className="text-2xl sm:text-3xl font-extrabold text-slate-800">Meet the Team</h2>
+              <p className="text-sm font-semibold text-slate-400 mt-2">The developers behind Room-Bot Service</p>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-12 max-w-4xl mx-auto">
+              {/* Member 1 */}
+              <div className="flex flex-col items-center text-center p-6 rounded-2xl hover:bg-slate-50 transition-all duration-300 group">
+                <div className="w-28 h-28 rounded-full overflow-hidden border-2 border-slate-200 group-hover:border-indigo-600 transition-all duration-300 mb-4 flex items-center justify-center bg-slate-100 shadow-sm">
+                  <img 
+                    src="/team/deepak.jpg" 
+                    alt="Deepak Dhewa" 
+                    className="w-full h-full object-cover group-hover:scale-105 transition-all duration-300"
+                    onError={(e) => { e.target.src = 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=150&h=150&q=80'; }}
+                  />
+                </div>
+                <h3 className="text-base font-bold text-slate-800 group-hover:text-indigo-600 transition-colors duration-300">Deepak Dhewa</h3>
+                <p className="text-xs font-semibold text-indigo-600 mt-1">Frontend Developer</p>
+              </div>
+
+              {/* Member 2 */}
+              <div className="flex flex-col items-center text-center p-6 rounded-2xl hover:bg-slate-50 transition-all duration-300 group">
+                <div className="w-28 h-28 rounded-full overflow-hidden border-2 border-slate-200 group-hover:border-indigo-600 transition-all duration-300 mb-4 flex items-center justify-center bg-slate-100 shadow-sm">
+                  <img 
+                    src="/team/meet.jpg" 
+                    alt="Meet Chaudhary" 
+                    className="w-full h-full object-cover group-hover:scale-105 transition-all duration-300"
+                    onError={(e) => { e.target.src = 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=150&h=150&q=80'; }}
+                  />
+                </div>
+                <h3 className="text-base font-bold text-slate-800 group-hover:text-indigo-600 transition-colors duration-300">Meet Chaudhary</h3>
+                <p className="text-xs font-semibold text-indigo-600 mt-1">Backend Developer</p>
+              </div>
+
+              {/* Member 3 */}
+              <div className="flex flex-col items-center text-center p-6 rounded-2xl hover:bg-slate-50 transition-all duration-300 group">
+                <div className="w-28 h-28 rounded-full overflow-hidden border-2 border-slate-200 group-hover:border-indigo-600 transition-all duration-300 mb-4 flex items-center justify-center bg-slate-100 shadow-sm">
+                  <img 
+                    src="/team/dipanshu.jpg" 
+                    alt="Dipanshu Shelke" 
+                    className="w-full h-full object-cover group-hover:scale-105 transition-all duration-300"
+                    onError={(e) => { e.target.src = 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=150&h=150&q=80'; }}
+                  />
+                </div>
+                <h3 className="text-base font-bold text-slate-800 group-hover:text-indigo-600 transition-colors duration-300">Dipanshu Shelke</h3>
+                <p className="text-xs font-semibold text-indigo-600 mt-1">Deployment Engineer</p>
+              </div>
+            </div>
+          </div>
+        </section>
       </main>
 
       <Footer />
