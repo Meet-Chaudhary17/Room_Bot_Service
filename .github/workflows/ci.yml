@@ -43,6 +43,7 @@ jobs:
         run: |
           cd backend
           npx prisma generate
+          npx prisma db push
         env:
           DATABASE_URL: postgresql://postgres:postgres@localhost:5432/room_bot_service?schema=public
 
