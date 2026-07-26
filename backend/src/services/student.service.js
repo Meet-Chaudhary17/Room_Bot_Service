@@ -44,6 +44,40 @@ export async function createRequest(studentId, studentBlockId, data) {
 
     const staffRole = mapServiceTypeToStaffRole(serviceType.name);
 
+    // 1. Check if ANY active & verified staff exists in the block
+    const anyStaff = await prisma.staff.findFirst({
+        where: {
+            blockId: studentBlockId,
+            isVerified: true,
+            isActive: true
+        }
+    });
+
+    if (!anyStaff) {
+        throw new ApiError(400, "No staff members are currently available for your hostel block. Please contact the administrator.");
+    }
+
+    // 2. Check if active & verified staff of the required role exists in the block
+    const eligibleStaff = await prisma.staff.findFirst({
+        where: {
+            blockId: studentBlockId,
+            role: staffRole,
+            isVerified: true,
+            isActive: true
+        }
+    });
+
+    if (!eligibleStaff) {
+        let displayRole = "General";
+        if (staffRole === "CLEANING") displayRole = "Cleaning";
+        else if (staffRole === "ELECTRICIAN") displayRole = "Electrician";
+        else if (staffRole === "PLUMBER") displayRole = "Plumber";
+        else if (staffRole === "CARPENTER") displayRole = "Carpenter";
+        else if (staffRole === "GENERAL") displayRole = "Maintenance";
+
+        throw new ApiError(400, `No ${displayRole} staff is currently available for your hostel block. Please try again later or contact the administrator.`);
+    }
+
     // Find all matching staff members in the student's block
     const staffList = await findActiveStaffWithWorkload(studentBlockId, staffRole);
 
@@ -121,6 +155,45 @@ export async function getRequestHistory(studentId, query) {
 }
 
 export async function createStudentComplaint(studentId, data) {
+    // Get student blockId
+    const student = await prisma.student.findUnique({
+        where: { id: studentId },
+        select: { blockId: true }
+    });
+
+    if (!student) {
+        throw new ApiError(404, "Student not found");
+    }
+
+    const studentBlockId = student.blockId;
+
+    // 1. Check if ANY active & verified staff exists in the block
+    const anyStaff = await prisma.staff.findFirst({
+        where: {
+            blockId: studentBlockId,
+            isVerified: true,
+            isActive: true
+        }
+    });
+
+    if (!anyStaff) {
+        throw new ApiError(400, "No staff members are currently available for your hostel block. Please contact the administrator.");
+    }
+
+    // 2. Check if active & verified staff of role GENERAL (Warden) exists in the block
+    const eligibleStaff = await prisma.staff.findFirst({
+        where: {
+            blockId: studentBlockId,
+            role: "GENERAL",
+            isVerified: true,
+            isActive: true
+        }
+    });
+
+    if (!eligibleStaff) {
+        throw new ApiError(400, "No Complaint/Warden staff is currently available for your hostel block. Please try again later or contact the administrator.");
+    }
+
     const complaint = await prisma.$transaction(async (tx) => {
         return await createComplaint({
             subject: data.subject,

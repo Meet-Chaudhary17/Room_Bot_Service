@@ -98,6 +98,20 @@ test.describe("Student Workflows & Auth Security Integration Tests", () => {
         });
         staff2Id = staff2.id;
 
+        // Register a General/Warden Staff in Block A so complaints can be submitted
+        await prisma.staff.create({
+            data: {
+                employeeId: "STAFF003",
+                name: "Warden Dave",
+                email: "dave@roombot.com",
+                passwordHash: "dummyhash",
+                role: "GENERAL",
+                blockId: blockId,
+                isVerified: true,
+                isActive: true
+            }
+        });
+
         // Log in student by generating JWT directly (simulating successful login)
         studentToken = generateToken({ id: studentId, email: "alpha@vitstudent.ac.in", role: "STUDENT" });
     });
@@ -268,6 +282,71 @@ test.describe("Student Workflows & Auth Security Integration Tests", () => {
         assert.strictEqual(res2.status, 200);
         assert.strictEqual(body2.data.length, 1);
         assert.strictEqual(body2.data[0].subject, "Water Outage");
+    });
+
+    test("6a. Request Creation Blocked when Category Staff is Missing", async () => {
+        // Create an active Plumbing service type
+        const serviceType = await prisma.serviceType.create({
+            data: {
+                name: "Plumbing Repair",
+                description: "Fixing pipe leaks"
+            }
+        });
+
+        const res = await fetch(`${BASE_URL}/students/requests`, {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+                "Authorization": `Bearer ${studentToken}`
+            },
+            body: JSON.stringify({
+                title: "Pipe Leak",
+                description: "Water leaking in room A-101",
+                serviceTypeId: serviceType.id
+            })
+        });
+
+        const body = await res.json();
+        assert.strictEqual(res.status, 400);
+        assert.strictEqual(body.success, false);
+        assert.match(body.message, /No Plumber staff is currently available/);
+
+        // Cleanup service type
+        await prisma.serviceType.delete({ where: { id: serviceType.id } });
+    });
+
+    test("6b. Complaint Creation Blocked when Warden Staff is Inactive/Missing", async () => {
+        // Find and deactivate the general staff (Warden Dave)
+        const warden = await prisma.staff.findFirst({
+            where: { role: "GENERAL" }
+        });
+        await prisma.staff.update({
+            where: { id: warden.id },
+            data: { isActive: false }
+        });
+
+        const res = await fetch(`${BASE_URL}/students/complaints`, {
+            method: "POST",
+            headers: { 
+                "Content-Type": "application/json",
+                "Authorization": `Bearer ${studentToken}`
+            },
+            body: JSON.stringify({
+                subject: "WiFi Outage",
+                description: "WiFi is down"
+            })
+        });
+
+        const body = await res.json();
+        assert.strictEqual(res.status, 400);
+        assert.strictEqual(body.success, false);
+        assert.match(body.message, /No Complaint\/Warden staff is currently available/);
+
+        // Restore warden
+        await prisma.staff.update({
+            where: { id: warden.id },
+            data: { isActive: true }
+        });
     });
 
     test("7. Feedback Submission Restrictions (Status Constraint)", async () => {
