@@ -21,6 +21,20 @@ let studentId;
 let staffToken;
 let staffId;
 
+function wrapTest(fn) {
+    return async () => {
+        try {
+            await fn();
+        } catch (err) {
+            console.error("❌ TEST FAILURE DETAILS:", err);
+            // Throw a clean, serializable Error with stack
+            const cleanErr = new Error(err.message || String(err));
+            cleanErr.stack = err.stack;
+            throw cleanErr;
+        }
+    };
+}
+
 test.describe("Real-Time & WebSockets Integration Tests", () => {
 
     test.before(async () => {
@@ -110,24 +124,26 @@ test.describe("Real-Time & WebSockets Integration Tests", () => {
         await new Promise((resolve) => server.close(resolve));
     });
 
-    test("1. Authentication: Connection reject on invalid token", async () => {
+    test("1. Authentication: Connection reject on invalid token", wrapTest(async () => {
         const clientSocket = io(`http://127.0.0.1:${PORT}`, {
             auth: { token: "invalidtoken" },
             forceNew: true,
             transports: ["websocket"]
         });
 
-        const error = await new Promise((resolve) => {
+        const error = await new Promise((resolve, reject) => {
+            const timeout = setTimeout(() => reject(new Error("Timeout waiting for connect_error")), 2000);
             clientSocket.on("connect_error", (err) => {
+                clearTimeout(timeout);
                 resolve(err);
             });
         });
 
         assert.strictEqual(error.message, "Invalid or expired session token");
         clientSocket.close();
-    });
+    }));
 
-    test("2. Authentication: Connection success on correct token", async () => {
+    test("2. Authentication: Connection success on correct token", wrapTest(async () => {
         const clientSocket = io(`http://127.0.0.1:${PORT}`, {
             auth: { token: studentToken },
             forceNew: true,
@@ -135,15 +151,22 @@ test.describe("Real-Time & WebSockets Integration Tests", () => {
         });
 
         await new Promise((resolve, reject) => {
-            clientSocket.on("connect", resolve);
-            clientSocket.on("connect_error", reject);
+            const timeout = setTimeout(() => reject(new Error("Timeout waiting for connect")), 2000);
+            clientSocket.on("connect", () => {
+                clearTimeout(timeout);
+                resolve();
+            });
+            clientSocket.on("connect_error", (err) => {
+                clearTimeout(timeout);
+                reject(err);
+            });
         });
 
         assert.strictEqual(clientSocket.connected, true);
         clientSocket.close();
-    });
+    }));
 
-    test("3. Real-time Notification: Receive REQUEST_CREATED update on request creation", async () => {
+    test("3. Real-time Notification: Receive REQUEST_CREATED update on request creation", wrapTest(async () => {
         // Connect Student Socket
         const studentSocket = io(`http://127.0.0.1:${PORT}`, {
             auth: { token: studentToken },
@@ -151,11 +174,23 @@ test.describe("Real-Time & WebSockets Integration Tests", () => {
             transports: ["websocket"]
         });
 
-        await new Promise((resolve) => studentSocket.on("connect", resolve));
+        await new Promise((resolve, reject) => {
+            const timeout = setTimeout(() => reject(new Error("Timeout waiting for studentSocket connect")), 2000);
+            studentSocket.on("connect", () => {
+                clearTimeout(timeout);
+                resolve();
+            });
+            studentSocket.on("connect_error", (err) => {
+                clearTimeout(timeout);
+                reject(err);
+            });
+        });
 
         // Setup notification event listener promise
-        const notificationPromise = new Promise((resolve) => {
+        const notificationPromise = new Promise((resolve, reject) => {
+            const timeout = setTimeout(() => reject(new Error("Timeout waiting for notification")), 4000);
             studentSocket.on("notification", (data) => {
+                clearTimeout(timeout);
                 resolve(data);
             });
         });
@@ -181,9 +216,9 @@ test.describe("Real-Time & WebSockets Integration Tests", () => {
         assert.match(notification.message, /created successfully/i);
 
         studentSocket.close();
-    });
+    }));
 
-    test("4. Real-time Notification: Receive ASSIGNED update on staff socket", async () => {
+    test("4. Real-time Notification: Receive ASSIGNED update on staff socket", wrapTest(async () => {
         // Connect Staff Socket
         const staffSocket = io(`http://127.0.0.1:${PORT}`, {
             auth: { token: staffToken },
@@ -191,10 +226,22 @@ test.describe("Real-Time & WebSockets Integration Tests", () => {
             transports: ["websocket"]
         });
 
-        await new Promise((resolve) => staffSocket.on("connect", resolve));
+        await new Promise((resolve, reject) => {
+            const timeout = setTimeout(() => reject(new Error("Timeout waiting for staffSocket connect")), 2000);
+            staffSocket.on("connect", () => {
+                clearTimeout(timeout);
+                resolve();
+            });
+            staffSocket.on("connect_error", (err) => {
+                clearTimeout(timeout);
+                reject(err);
+            });
+        });
 
-        const staffNotificationPromise = new Promise((resolve) => {
+        const staffNotificationPromise = new Promise((resolve, reject) => {
+            const timeout = setTimeout(() => reject(new Error("Timeout waiting for staff notification")), 4000);
             staffSocket.on("notification", (data) => {
+                clearTimeout(timeout);
                 resolve(data);
             });
         });
@@ -218,9 +265,9 @@ test.describe("Real-Time & WebSockets Integration Tests", () => {
         assert.match(notification.message, /assigned/i);
 
         staffSocket.close();
-    });
+    }));
 
-    test("5. Notification History: Retrieve persisted notifications from DB via HTTP GET", async () => {
+    test("5. Notification History: Retrieve persisted notifications from DB via HTTP GET", wrapTest(async () => {
         // Fetch student notification history
         const res = await fetch(`${BASE_URL}/students/notifications`, {
             headers: { "Authorization": `Bearer ${studentToken}` }
@@ -230,6 +277,6 @@ test.describe("Real-Time & WebSockets Integration Tests", () => {
         assert.strictEqual(body.success, true);
         assert.ok(body.data.length >= 2); // 2 requests created in earlier tests
         assert.strictEqual(body.data[0].title, "REQUEST_CREATED");
-    });
+    }));
 
 });
