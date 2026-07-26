@@ -10,6 +10,19 @@ import prisma from "../src/config/prisma.js";
 import { initSocketServer, getIO } from "../src/config/socket.js";
 import { generateToken } from "../src/utils/jwt.js";
 
+// Add global handlers to intercept any asynchronous error that would trigger test runner serialization crash
+process.on("uncaughtException", (err) => {
+    console.error("🔥 GLOBAL UNCAUGHT EXCEPTION IN TEST RUNNER:", err.message, err.stack);
+    process.exit(1);
+});
+process.on("unhandledRejection", (reason) => {
+    console.error("🔥 GLOBAL UNHANDLED REJECTION IN TEST RUNNER:", reason);
+    if (reason && reason.stack) {
+        console.error(reason.stack);
+    }
+    process.exit(1);
+});
+
 const PORT = 5095;
 const BASE_URL = `http://127.0.0.1:${PORT}/api/v1`;
 
