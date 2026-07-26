@@ -7,7 +7,7 @@ import http from "http";
 import { io } from "socket.io-client";
 import app from "../src/app.js";
 import prisma from "../src/config/prisma.js";
-import { initSocketServer } from "../src/config/socket.js";
+import { initSocketServer, getIO } from "../src/config/socket.js";
 import { generateToken } from "../src/utils/jwt.js";
 
 const PORT = 5095;
@@ -100,6 +100,11 @@ test.describe("Real-Time & WebSockets Integration Tests", () => {
         await prisma.staff.deleteMany({});
         await prisma.block.deleteMany({});
         await prisma.serviceType.deleteMany({});
+
+        const ioInstance = getIO();
+        if (ioInstance) {
+            ioInstance.close();
+        }
 
         await prisma.$disconnect();
         await new Promise((resolve) => server.close(resolve));
