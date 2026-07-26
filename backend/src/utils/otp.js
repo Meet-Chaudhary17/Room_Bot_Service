@@ -19,11 +19,14 @@ export async function sendOtpEmail(email, otp) {
 
     try {
         const transporter = nodemailer.createTransport({
-            service: 'gmail',
+            host: "smtp.gmail.com",
+            port: 465,
+            secure: true,
             auth: {
                 user,
                 pass
             },
+            family: 4, // Force IPv4 to prevent IPv6 routing timeouts on Render
             connectionTimeout: 4000, // 4 seconds connection timeout
             greetingTimeout: 4000,   // 4 seconds greeting timeout
             socketTimeout: 4000      // 4 seconds socket timeout
