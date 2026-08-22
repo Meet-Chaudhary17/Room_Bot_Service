@@ -40,7 +40,7 @@ app.use(cors({
     }
   },
   methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE'],
-  credentials: false
+  credentials: true
 }));
 app.use(express.json({ limit: '100kb' }));
 app.use(requestId);
