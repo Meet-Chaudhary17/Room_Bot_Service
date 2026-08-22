@@ -1,49 +1,31 @@
-import api from './api.js';
+import axios from './axios';
 
-export const studentService = {
-  async getDashboard() {
-    const res = await api.get('/students/dashboard');
-    return res.data;
-  },
-
-  async getProfile() {
-    const res = await api.get('/students/profile');
-    return res.data;
-  },
-
-  async updateProfile(data) {
-    const res = await api.put('/students/profile', data);
-    return res.data;
-  },
-
-  async createRequest(data) {
-    const res = await api.post('/students/service-requests', data);
-    return res.data;
-  },
-
-  async listRequests() {
-    const res = await api.get('/students/service-requests');
-    return res.data;
-  },
-
-  async cancelRequest(requestId) {
-    const res = await api.patch(`/students/service-requests/${requestId}/cancel`);
-    return res.data;
-  },
-
-  async createComplaint(data) {
-    const res = await api.post('/students/complaints', data);
-    return res.data;
-  },
-
-  async listComplaints() {
-    const res = await api.get('/students/complaints');
-    return res.data;
-  },
-
-  async submitFeedback(data) {
-    const res = await api.post('/students/feedback', data);
-    return res.data;
-  }
+export const createRequest = async (requestData) => {
+  const response = await axios.post('/students/requests', requestData);
+  return response.data;
 };
-export default studentService;
+
+export const getRequestHistory = async (params) => {
+  const response = await axios.get('/students/requests', { params });
+  return response.data;
+};
+
+export const createComplaint = async (complaintData) => {
+  const response = await axios.post('/students/complaints', complaintData);
+  return response.data;
+};
+
+export const getComplaints = async () => {
+  const response = await axios.get('/students/complaints');
+  return response.data;
+};
+
+export const submitFeedback = async (requestId, feedbackData) => {
+  const response = await axios.post(`/students/requests/${requestId}/feedback`, feedbackData);
+  return response.data;
+};
+
+export const getNotifications = async () => {
+  const response = await axios.get('/students/notifications');
+  return response.data;
+};

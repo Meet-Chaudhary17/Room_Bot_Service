@@ -1,44 +1,36 @@
-import api from './api.js';
+import axios from './axios';
 
-export const authService = {
-  async registerStudent(data) {
-    const res = await api.post('/auth/register/student', data);
-    return res.data;
-  },
-
-  async registerStaff(data) {
-    const res = await api.post('/auth/register/staff', data);
-    return res.data;
-  },
-
-  async loginStudent(data) {
-    const res = await api.post('/auth/login/student', data);
-    return res.data;
-  },
-
-  async loginStaff(data) {
-    const res = await api.post('/auth/login/staff', data);
-    return res.data;
-  },
-
-  async loginAdmin(data) {
-    const res = await api.post('/auth/login/admin', data);
-    return res.data;
-  },
-
-  async sendOtp(data) {
-    const res = await api.post('/auth/send-otp', data);
-    return res.data;
-  },
-
-  async verifyOtp(data) {
-    const res = await api.post('/auth/verify-otp', data);
-    return res.data;
-  },
-
-  async logout() {
-    const res = await api.post('/auth/logout');
-    return res.data;
-  }
+export const login = async (email, password) => {
+  const response = await axios.post('/auth/login', { email, password });
+  return response.data;
 };
-export default authService;
+
+export const registerStudent = async (studentData) => {
+  const response = await axios.post('/auth/register/student', studentData);
+  return response.data;
+};
+
+export const registerStaff = async (staffData) => {
+  const response = await axios.post('/auth/register/staff', staffData);
+  return response.data;
+};
+
+export const verifyOtp = async (email, otp) => {
+  const response = await axios.post('/auth/verify-otp', { email, otp });
+  return response.data;
+};
+
+export const forgotPassword = async (email) => {
+  const response = await axios.post('/auth/forgot-password', { email });
+  return response.data;
+};
+
+export const resetPassword = async (email, otp, newPassword) => {
+  const response = await axios.post('/auth/reset-password', { email, otp, newPassword });
+  return response.data;
+};
+
+export const logout = async () => {
+  const response = await axios.post('/auth/logout');
+  return response.data;
+};

@@ -1,65 +1,89 @@
-import React, { createContext, useState, useEffect, useContext } from 'react';
+import React, { createContext, useState, useEffect } from 'react';
+import * as authService from '../services/auth.service';
 
-const AuthContext = createContext(null);
+export const AuthContext = createContext(null);
 
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [token, setToken] = useState(null);
+  const [role, setRole] = useState(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const savedToken = localStorage.getItem('token');
-    const savedUser = localStorage.getItem('user');
+    // Rehydrate auth state on mount
+    const storedUser = localStorage.getItem('user');
+    const storedToken = localStorage.getItem('token');
+    const storedRole = localStorage.getItem('role');
 
-    try {
-      if (savedToken && savedUser) {
-        setToken(savedToken);
-        setUser(JSON.parse(savedUser));
-      }
-    } catch (e) {
-      console.error('Failed to parse saved user session:', e);
-      localStorage.removeItem('token');
-      localStorage.removeItem('user');
+    if (storedUser && storedToken && storedRole) {
+      setUser(JSON.parse(storedUser));
+      setToken(storedToken);
+      setRole(storedRole);
     }
     setLoading(false);
   }, []);
 
-  const login = (newToken, newUser) => {
-    setToken(newToken);
-    setUser(newUser);
-    localStorage.setItem('token', newToken);
-    localStorage.setItem('user', JSON.stringify(newUser));
+  const login = async (email, password) => {
+    setLoading(true);
+    try {
+      const response = await authService.login(email, password);
+      const { user: loggedUser, token: loggedToken, role: loggedRole } = response.data;
+      
+      setUser(loggedUser);
+      setToken(loggedToken);
+      setRole(loggedRole);
+      
+      localStorage.setItem('user', JSON.stringify(loggedUser));
+      localStorage.setItem('token', loggedToken);
+      localStorage.setItem('role', loggedRole);
+      
+      return response;
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const logout = () => {
-    setToken(null);
-    setUser(null);
-    localStorage.removeItem('token');
-    localStorage.removeItem('user');
+  const logout = async () => {
+    setLoading(true);
+    try {
+      await authService.logout();
+    } catch (err) {
+      console.error("Logout request failed, cleaning local state anyway", err);
+    } finally {
+      setUser(null);
+      setToken(null);
+      setRole(null);
+      localStorage.removeItem('user');
+      localStorage.removeItem('token');
+      localStorage.removeItem('role');
+      setLoading(false);
+    }
   };
 
-  const updateUserProfile = (updatedFields) => {
-    setUser((prev) => {
-      if (!prev) return null;
-      const updated = { ...prev, ...updatedFields };
-      localStorage.setItem('user', JSON.stringify(updated));
-      return updated;
-    });
+  const registerStudent = async (data) => {
+    return await authService.registerStudent(data);
   };
 
-  return (
-    <AuthContext.Provider value={{ user, token, loading, login, logout, updateUserProfile }}>
-      {!loading && children}
-    </AuthContext.Provider>
-  );
+  const registerStaff = async (data) => {
+    return await authService.registerStaff(data);
+  };
+
+  const verifyOtp = async (email, otp) => {
+    return await authService.verifyOtp(email, otp);
+  };
+
+  const value = {
+    user,
+    token,
+    role,
+    isAuthenticated: !!token,
+    loading,
+    login,
+    logout,
+    registerStudent,
+    registerStaff,
+    verifyOtp
+  };
+
+  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 };
-
-export const useAuth = () => {
-  const context = useContext(AuthContext);
-  if (!context) {
-    throw new Error('useAuth must be used within an AuthProvider');
-  }
-  return context;
-};
-
-export default AuthContext;

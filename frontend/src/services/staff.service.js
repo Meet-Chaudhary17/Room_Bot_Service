@@ -1,54 +1,41 @@
-import api from './api.js';
+import axios from './axios';
 
-export const staffService = {
-  async getDashboard() {
-    const res = await api.get('/staff/dashboard');
-    return res.data;
-  },
-
-  async listRequests(filters = {}) {
-    const res = await api.get('/staff/service-requests', { params: filters });
-    return res.data;
-  },
-
-  async getRequestDetails(requestId) {
-    const res = await api.get(`/staff/service-requests/${requestId}`);
-    return res.data;
-  },
-
-  async startWork(requestId) {
-    const res = await api.patch(`/staff/service-requests/${requestId}/status`, { status: 'In Progress' });
-    return res.data;
-  },
-
-  async getOccupants(requestId) {
-    const res = await api.get(`/staff/service-requests/${requestId}/occupants`);
-    return res.data;
-  },
-
-  async generateOtp(requestId, studentId) {
-    const res = await api.post(`/staff/service-requests/${requestId}/generate-otp`, { studentId });
-    return res.data;
-  },
-
-  async verifyOtp(requestId, otp, studentId) {
-    const res = await api.post(`/staff/service-requests/${requestId}/verify-otp`, { otp, studentId });
-    return res.data;
-  },
-
-  async getHistory(filters = {}) {
-    const res = await api.get('/staff/history', { params: filters });
-    return res.data;
-  },
-
-  async getProfile() {
-    const res = await api.get('/staff/profile');
-    return res.data;
-  },
-
-  async updateProfile(data) {
-    const res = await api.put('/staff/profile', data);
-    return res.data;
-  }
+export const getDashboard = async () => {
+  const response = await axios.get('/staff/dashboard');
+  return response.data;
 };
-export default staffService;
+
+export const getAssignedRequests = async (params) => {
+  const response = await axios.get('/staff/requests', { params });
+  return response.data;
+};
+
+export const startRequestWork = async (requestId) => {
+  const response = await axios.patch(`/staff/requests/${requestId}/start`);
+  return response.data;
+};
+
+export const getRequestOccupants = async (requestId) => {
+  const response = await axios.get(`/staff/service-requests/${requestId}/occupants`);
+  return response.data;
+};
+
+export const generateCompletionOtp = async (requestId, studentId) => {
+  const response = await axios.post(`/staff/service-requests/${requestId}/generate-otp`, { studentId });
+  return response.data;
+};
+
+export const verifyCompletionOtp = async (requestId, studentId, otp) => {
+  const response = await axios.post(`/staff/service-requests/${requestId}/verify-otp`, { studentId, otp });
+  return response.data;
+};
+
+export const getProfile = async () => {
+  const response = await axios.get('/staff/profile');
+  return response.data;
+};
+
+export const getNotifications = async () => {
+  const response = await axios.get('/staff/notifications');
+  return response.data;
+};

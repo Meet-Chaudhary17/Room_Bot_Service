@@ -1,64 +1,81 @@
-import api from './api.js';
+import axios from './axios';
 
-export const adminService = {
-  async getDashboard() {
-    const res = await api.get('/admin/dashboard');
-    return res.data;
-  },
-
-  async listStudents(filters = {}) {
-    const res = await api.get('/admin/students', { params: filters });
-    return res.data;
-  },
-
-  async listStaff(filters = {}) {
-    const res = await api.get('/admin/staff', { params: filters });
-    return res.data;
-  },
-
-  async updateStudentStatus(studentId, status) {
-    const res = await api.patch(`/admin/students/${studentId}/status`, { status });
-    return res.data;
-  },
-
-  async updateStaffStatus(staffId, status) {
-    const res = await api.patch(`/admin/staff/${staffId}/status`, { status });
-    return res.data;
-  },
-
-  async listServiceRequests(filters = {}) {
-    const res = await api.get('/admin/service-requests', { params: filters });
-    return res.data;
-  },
-
-  async listComplaints(filters = {}) {
-    const res = await api.get('/admin/complaints', { params: filters });
-    return res.data;
-  },
-
-  async resolveComplaint(complaintId, status, resolutionNotes) {
-    const res = await api.patch(`/admin/complaints/${complaintId}/status`, { status, resolutionNotes });
-    return res.data;
-  },
-
-  async listFeedback(filters = {}) {
-    const res = await api.get('/admin/feedback', { params: filters });
-    return res.data;
-  },
-
-  async getAnalytics() {
-    const res = await api.get('/admin/analytics');
-    return res.data;
-  },
-
-  async getProfile() {
-    const res = await api.get('/admin/profile');
-    return res.data;
-  },
-
-  async listAuditLogs(filters = {}) {
-    const res = await api.get('/admin/audit-logs', { params: filters });
-    return res.data;
-  }
+export const getDashboardStats = async () => {
+  const response = await axios.get('/admin/dashboard');
+  return response.data;
 };
-export default adminService;
+
+export const getStudents = async (params) => {
+  const response = await axios.get('/admin/students', { params });
+  return response.data;
+};
+
+export const toggleStudentBlock = async (studentId, isBlocked) => {
+  const response = await axios.patch(`/admin/students/${studentId}/block`, { isBlocked });
+  return response.data;
+};
+
+export const getStaff = async (params) => {
+  const response = await axios.get('/admin/staff', { params });
+  return response.data;
+};
+
+export const toggleStaffStatus = async (staffId, isActive) => {
+  const response = await axios.patch(`/admin/staff/${staffId}/status`, { isActive });
+  return response.data;
+};
+
+export const getBlocks = async () => {
+  const response = await axios.get('/admin/blocks');
+  return response.data;
+};
+
+export const createBlock = async (blockData) => {
+  const response = await axios.post('/admin/blocks', blockData);
+  return response.data;
+};
+
+export const deleteBlock = async (blockId) => {
+  const response = await axios.delete(`/admin/blocks/${blockId}`);
+  return response.data;
+};
+
+export const getServiceTypes = async () => {
+  const response = await axios.get('/admin/service-types');
+  return response.data;
+};
+
+export const createServiceType = async (serviceTypeData) => {
+  const response = await axios.post('/admin/service-types', serviceTypeData);
+  return response.data;
+};
+
+export const toggleServiceTypeStatus = async (serviceTypeId, isActive) => {
+  const response = await axios.patch(`/admin/service-types/${serviceTypeId}/toggle`, { isActive });
+  return response.data;
+};
+
+export const getRequests = async (params) => {
+  const response = await axios.get('/admin/requests', { params });
+  return response.data;
+};
+
+export const reassignRequest = async (requestId, staffId) => {
+  const response = await axios.patch(`/admin/requests/${requestId}/reassign`, { staffId });
+  return response.data;
+};
+
+export const getComplaints = async (params) => {
+  const response = await axios.get('/admin/complaints', { params });
+  return response.data;
+};
+
+export const resolveComplaint = async (complaintId) => {
+  const response = await axios.patch(`/admin/complaints/${complaintId}/resolve`);
+  return response.data;
+};
+
+export const getFeedbacks = async (params) => {
+  const response = await axios.get('/admin/feedbacks', { params });
+  return response.data;
+};
