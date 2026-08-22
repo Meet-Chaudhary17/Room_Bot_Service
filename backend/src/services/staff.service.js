@@ -1,198 +1,211 @@
-import prisma from "../config/prisma.js";
-import {
-    getStaffDashboardStats,
-    getStaffRequests,
-    getStaffRequestCount,
-    findRequestByIdAndStaffId,
-    updateRequestStatus,
-    getStaffFeedbackStats,
-    getStaffProfileDetails
-} from "../repositories/staff.repository.js";
-import { ApiError } from "../utils/ApiError.js";
-import { generateOtp, sendOtpEmail } from "../utils/otp.js";
-import { sendNotification } from "./notification.service.js";
+import { randomInt } from 'node:crypto';
+import { prisma } from '../config/prisma.js';
+import { env } from '../config/env.js';
+import { AppError } from '../utils/app-error.js';
+import { StaffRepository } from '../repositories/staff.repository.js';
+import { emailService } from './email.service.js';
 
-// Notification hook helper
-async function triggerNotificationHook(userId, role, type, message) {
-    await sendNotification({ userId, role, title: type, message });
-}
+const repository = new StaffRepository(prisma);
 
-export async function getDashboardSummary(staffId) {
-    const stats = await getStaffDashboardStats(staffId);
-    
-    // Process count array
-    let totalAssigned = 0;
-    let inProgress = 0;
-    let otpPending = 0;
-    let completed = 0;
+export const staffService = {
+  async getDashboard(staffId) {
+    const stats = await repository.dashboardStats(staffId);
+    const { items: recentRequests } = await repository.assignedRequests(staffId, { limit: 5 });
 
-    stats.forEach(s => {
-        if (s.status === "ASSIGNED") totalAssigned = s._count.id;
-        else if (s.status === "IN_PROGRESS") inProgress = s._count.id;
-        else if (s.status === "OTP_PENDING") otpPending = s._count.id;
-        else if (s.status === "COMPLETED") completed = s._count.id;
-    });
-
-    const feedbackStats = await getStaffFeedbackStats(staffId);
+    const formattedRecent = recentRequests.map(req => ({
+      requestId: req.id,
+      studentRoom: req.roomNumber,
+      serviceCategory: req.category.categoryName,
+      status: req.requestStatus === 'ASSIGNED' ? 'Assigned' : req.requestStatus === 'IN_PROGRESS' ? 'In Progress' : req.requestStatus,
+      assignedDate: req.assignedAt ? req.assignedAt.toISOString().split('T')[0] : null
+    }));
 
     return {
-        totalAssigned,
-        inProgress,
-        otpPending,
-        completed,
-        totalAssignedRequests: totalAssigned + inProgress + otpPending + completed,
-        averageRating: feedbackStats.averageRating,
-        totalFeedbackCount: feedbackStats.feedbackCount
+      ...stats,
+      recentRequests: formattedRecent
     };
-}
+  },
 
-export async function getAssignedRequests(staffId, query) {
-    const page = parseInt(query.page) || 1;
-    const limit = parseInt(query.limit) || 10;
-    const skip = (page - 1) * limit;
-    const sort = query.sort || "desc";
+  async listAssignedRequests(staffId, filters) {
+    const { items, total } = await repository.assignedRequests(staffId, filters);
 
-    const filters = {};
-    if (query.status) {
-        filters.status = query.status;
+    const formatted = items.map(req => ({
+      requestId: req.id,
+      studentName: req.student.fullName,
+      serviceType: req.category.categoryName,
+      status: req.requestStatus === 'ASSIGNED' ? 'Assigned' : req.requestStatus === 'IN_PROGRESS' ? 'In Progress' : req.requestStatus,
+      block: req.student.block.blockName,
+      roomNumber: req.roomNumber,
+      priority: req.priority
+    }));
+
+    return formatted;
+  },
+
+  async getRequestDetails(requestId, staffId) {
+    const req = await repository.requestDetails(requestId, staffId);
+    if (!req) {
+      throw new AppError(404, 'REQUEST_NOT_FOUND', 'Service request not found or not assigned to you.');
     }
-
-    const requests = await getStaffRequests(staffId, filters, sort, skip, limit);
-    const totalItems = await getStaffRequestCount(staffId, filters);
-    const totalPages = Math.ceil(totalItems / limit);
 
     return {
-        requests,
-        pagination: {
-            page,
-            limit,
-            totalItems,
-            totalPages,
-            hasNextPage: page < totalPages,
-            hasPreviousPage: page > 1
-        }
+      requestId: req.id,
+      studentName: req.student.fullName,
+      email: req.student.email,
+      block: req.student.block.blockName,
+      roomNumber: req.roomNumber,
+      serviceType: req.category.categoryName,
+      problemTitle: req.title,
+      description: req.description,
+      priority: req.priority,
+      status: req.requestStatus === 'ASSIGNED' ? 'Assigned' : req.requestStatus === 'IN_PROGRESS' ? 'In Progress' : req.requestStatus,
+      createdAt: req.createdAt,
+      assignedAt: req.assignedAt,
+      startedAt: req.startedAt,
+      completedAt: req.completedAt
     };
-}
+  },
 
-export async function startRequestWork(staffId, requestId) {
-    const request = await findRequestByIdAndStaffId(requestId, staffId);
-    if (!request) {
-        throw new ApiError(404, "Service request not found or not assigned to you");
+  async startWork(requestId, staffId) {
+    const req = await repository.requestDetails(requestId, staffId);
+    if (!req) {
+      throw new AppError(404, 'REQUEST_NOT_FOUND', 'Service request not found or not assigned to you.');
     }
 
-    // Strict transition: ASSIGNED -> IN_PROGRESS
-    if (request.status !== "ASSIGNED") {
-        throw new ApiError(409, `Cannot start work. Request status is '${request.status}' but must be 'ASSIGNED'`);
+    if (req.requestStatus !== 'ASSIGNED') {
+      throw new AppError(409, 'INVALID_STATUS_TRANSITION', 'Only requests with Assigned status can be started.');
     }
 
-    const updatedRequest = await prisma.$transaction(async (tx) => {
-        return await updateRequestStatus(requestId, "IN_PROGRESS", {
-            startedAt: new Date()
-        }, tx);
+    await repository.updateRequestStatus(requestId, staffId, 'IN_PROGRESS', new Date());
+  },
+
+  async getRequestOccupants(requestId, staffId) {
+    const req = await repository.requestDetails(requestId, staffId);
+    if (!req) {
+      throw new AppError(404, 'REQUEST_NOT_FOUND', 'Service request not found or not assigned to you.');
+    }
+    return repository.findRoomOccupants(req.student.blockId, req.roomNumber);
+  },
+
+  async generateCompletionOtp(requestId, staffId, studentId) {
+    const req = await repository.requestDetails(requestId, staffId);
+    if (!req) {
+      throw new AppError(404, 'REQUEST_NOT_FOUND', 'Service request not found or not assigned to you.');
+    }
+
+    if (req.requestStatus !== 'IN_PROGRESS') {
+      throw new AppError(409, 'INVALID_STATUS_TRANSITION', 'OTP can only be generated for requests that are In Progress.');
+    }
+
+    const targetStudentId = studentId || req.studentId;
+
+    // Verify that the student exists and belongs to the exact same block and room as the request
+    const targetStudent = await prisma.student.findFirst({
+      where: {
+        id: targetStudentId,
+        blockId: req.student.blockId,
+        roomNumber: req.roomNumber
+      }
     });
 
-    await triggerNotificationHook(request.studentId, "STUDENT", "WORK_STARTED", `Staff has started work on request: ${request.title}`);
+    if (!targetStudent) {
+      throw new AppError(400, 'INVALID_RECIPIENT', 'Selected student is not an authorized occupant of this room.');
+    }
 
-    return updatedRequest;
-}
+    const otpCode = String(randomInt(100000, 1000000));
+    const expiresAt = new Date(Date.now() + env.OTP_EXPIRY_MINUTES * 60_000);
 
-export async function triggerRequestCompletionOtp(staffId, requestId) {
-    const request = await prisma.serviceRequest.findUnique({
-        where: { id: requestId },
-        include: {
-            student: {
-                select: {
-                    email: true,
-                    id: true
-                }
-            }
-        }
+    const otpRecord = await repository.createOtp({
+      userType: 'STUDENT',
+      userId: targetStudentId,
+      otpCode,
+      purpose: 'COMPLETION',
+      attempts: 0,
+      expiresAt
     });
 
-    if (!request || request.staffId !== staffId) {
-        throw new ApiError(404, "Service request not found or not assigned to you");
+    await emailService.sendOtp({
+      to: targetStudent.email,
+      purpose: 'COMPLETION',
+      otp: otpCode
+    });
+  },
+
+  async verifyCompletionOtp(requestId, staffId, studentId, otp) {
+    const req = await repository.requestDetails(requestId, staffId);
+    if (!req) {
+      throw new AppError(404, 'REQUEST_NOT_FOUND', 'Service request not found or not assigned to you.');
     }
 
-    // Strict transition: IN_PROGRESS -> OTP_PENDING
-    if (request.status !== "IN_PROGRESS") {
-        throw new ApiError(409, `Cannot request completion. Request status is '${request.status}' but must be 'IN_PROGRESS'`);
+    if (req.requestStatus !== 'IN_PROGRESS') {
+      throw new AppError(409, 'INVALID_STATUS_TRANSITION', 'Requests can only be completed from In Progress status.');
     }
 
-    const otp = generateOtp();
+    const targetStudentId = studentId || req.studentId;
 
-    const updatedRequest = await prisma.$transaction(async (tx) => {
-        return await updateRequestStatus(requestId, "OTP_PENDING", {
-            otpCode: otp
-        }, tx);
+    // Verify that the student exists and belongs to the exact same block and room as the request
+    const targetStudent = await prisma.student.findFirst({
+      where: {
+        id: targetStudentId,
+        blockId: req.student.blockId,
+        roomNumber: req.roomNumber
+      }
     });
 
-    await sendOtpEmail(request.student.email, otp);
-    await triggerNotificationHook(request.student.id, "STUDENT", "OTP_DISPATCHED", `Completion OTP has been sent to your email for request: ${request.title}`);
-
-    return updatedRequest;
-}
-
-export async function verifyRequestCompletion(staffId, requestId, otp) {
-    const request = await prisma.serviceRequest.findUnique({
-        where: { id: requestId }
-    });
-
-    if (!request || request.staffId !== staffId) {
-        throw new ApiError(404, "Service request not found or not assigned to you");
+    if (!targetStudent) {
+      throw new AppError(400, 'INVALID_RECIPIENT', 'Selected student is not an authorized occupant of this room.');
     }
 
-    // Strict transition: OTP_PENDING -> COMPLETED
-    if (request.status !== "OTP_PENDING") {
-        throw new ApiError(409, `Cannot complete request. Request status is '${request.status}' but must be 'OTP_PENDING'`);
+    const latestOtp = await repository.findLatestOtp(targetStudentId);
+    if (!latestOtp || latestOtp.expiresAt < new Date() || latestOtp.attempts >= 5) {
+      throw new AppError(410, 'OTP_EXPIRED', 'OTP is expired or invalid.');
     }
 
-    if (!request.otpCode) {
-        throw new ApiError(400, "No active completion OTP found for this request. Please request a new OTP");
+    if (latestOtp.otpCode !== otp) {
+      await repository.updateOtp(latestOtp.id, { attempts: { increment: 1 } });
+      throw new AppError(400, 'INVALID_OTP', 'Invalid OTP.');
     }
 
-    // Check OTP Expiration (5 minutes)
-    const otpAgeInMs = Date.now() - new Date(request.updatedAt).getTime();
-    if (otpAgeInMs > 5 * 60 * 1000) {
-        // Rollback state back to IN_PROGRESS if expired
-        await prisma.$transaction(async (tx) => {
-            await updateRequestStatus(requestId, "IN_PROGRESS", {
-                otpCode: null
-            }, tx);
-        });
-        throw new ApiError(400, "OTP has expired. Please request a new completion OTP");
-    }
+    await repository.completeRequest(requestId, staffId, latestOtp.id, new Date());
+  },
 
-    if (request.otpCode !== otp) {
-        throw new ApiError(400, "Invalid OTP code");
-    }
+  async getHistory(staffId, filters) {
+    const { items, total } = await repository.serviceHistory(staffId, filters);
 
-    const completedRequest = await prisma.$transaction(async (tx) => {
-        return await updateRequestStatus(requestId, "COMPLETED", {
-            otpCode: null, // Clear immediately on success
-            completedAt: new Date(),
-            otpVerifiedAt: new Date()
-        }, tx);
-    });
+    const formatted = items.map(req => ({
+      requestId: req.id,
+      serviceType: req.category.categoryName,
+      completedOn: req.completedAt ? req.completedAt.toISOString().split('T')[0] : null,
+      rating: req.feedback ? req.feedback.rating : null
+    }));
 
-    await triggerNotificationHook(request.studentId, "STUDENT", "REQUEST_COMPLETED", `Your service request has been successfully completed: ${request.title}`);
+    return formatted;
+  },
 
-    return completedRequest;
-}
-
-export async function getStaffProfile(staffId) {
-    const staff = await getStaffProfileDetails(staffId);
+  async getProfile(staffId) {
+    const staff = await repository.profile(staffId);
     if (!staff) {
-        throw new ApiError(404, "Staff profile not found");
+      throw new AppError(404, 'STAFF_NOT_FOUND', 'Staff member not found.');
     }
 
-    const feedbackStats = await getStaffFeedbackStats(staffId);
-
-    // Sanitize output (exclude passwordHash)
-    const { passwordHash, ...sanitizedStaff } = staff;
-
     return {
-        ...sanitizedStaff,
-        averageRating: feedbackStats.averageRating,
-        totalFeedbackCount: feedbackStats.feedbackCount
+      name: staff.fullName,
+      email: staff.email,
+      role: staff.serviceRole === 'CLEANING' ? 'Cleaning' : staff.serviceRole === 'ELECTRICAL_MAINTENANCE' ? 'Electrical Maintenance' : staff.serviceRole === 'PLUMBING' ? 'Plumbing' : staff.serviceRole === 'AC_MAINTENANCE' ? 'AC Maintenance' : staff.serviceRole === 'FURNITURE_REPAIR' ? 'Furniture Repair' : staff.serviceRole,
+      block: staff.block.blockName,
+      phoneNumber: staff.phoneNumber
     };
-}
+  },
+
+  async updateProfile(staffId, data) {
+    const updateData = {};
+    if (data.name !== undefined) {
+      updateData.fullName = data.name;
+    }
+    if (data.phoneNumber !== undefined) {
+      updateData.phoneNumber = data.phoneNumber;
+    }
+
+    await repository.updateProfile(staffId, updateData);
+  }
+};

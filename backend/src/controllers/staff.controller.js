@@ -1,71 +1,76 @@
-import {
-    getDashboardSummary,
-    getAssignedRequests,
-    startRequestWork,
-    triggerRequestCompletionOtp,
-    verifyRequestCompletion,
-    getStaffProfile
-} from "../services/staff.service.js";
+import { staffService } from '../services/staff.service.js';
+import { asyncHandler } from '../utils/async-handler.js';
 
-import {
-    verifyCompletionSchema,
-    getStaffRequestsQuerySchema
-} from "../validations/staff.validation.js";
+const getStaffId = (req) => Number(req.user.userId);
 
-import { asyncHandler } from "../utils/asyncHandler.js";
-import { ApiResponse } from "../utils/ApiResponse.js";
-import { getUserNotifications } from "../services/notification.service.js";
+export const staffController = {
+  dashboard: asyncHandler(async (req, res) => {
+    const data = await staffService.getDashboard(getStaffId(req));
+    res.json({ success: true, data });
+  }),
 
-export const getDashboard = asyncHandler(async (req, res) => {
-    const summary = await getDashboardSummary(req.user.id);
-    res.status(200).json(
-        new ApiResponse(200, summary, "Staff dashboard summary retrieved successfully")
-    );
-});
+  requests: asyncHandler(async (req, res) => {
+    const { status, priority, search, page, limit } = req.query;
+    const filters = {
+      status,
+      priority,
+      search,
+      page: page ? Number(page) : undefined,
+      limit: limit ? Number(limit) : undefined
+    };
+    const data = await staffService.listAssignedRequests(getStaffId(req), filters);
+    res.json({ success: true, data });
+  }),
 
-export const getRequests = asyncHandler(async (req, res) => {
-    const query = getStaffRequestsQuerySchema.parse(req.query);
-    const result = await getAssignedRequests(req.user.id, query);
-    res.status(200).json(
-        new ApiResponse(200, result, "Assigned requests retrieved successfully")
-    );
-});
+  requestDetails: asyncHandler(async (req, res) => {
+    const requestId = Number(req.params.requestId);
+    const data = await staffService.getRequestDetails(requestId, getStaffId(req));
+    res.json({ success: true, data });
+  }),
 
-export const startWork = asyncHandler(async (req, res) => {
-    const { id } = req.params;
-    const request = await startRequestWork(req.user.id, id);
-    res.status(200).json(
-        new ApiResponse(200, request, "Work started on request successfully")
-    );
-});
+  updateStatus: asyncHandler(async (req, res) => {
+    const requestId = Number(req.params.requestId);
+    await staffService.startWork(requestId, getStaffId(req));
+    res.json({ success: true, message: 'Request status updated successfully.' });
+  }),
 
-export const requestCompletion = asyncHandler(async (req, res) => {
-    const { id } = req.params;
-    const request = await triggerRequestCompletionOtp(req.user.id, id);
-    res.status(200).json(
-        new ApiResponse(200, request, "Completion OTP generated and sent to student email successfully")
-    );
-});
+  generateOtp: asyncHandler(async (req, res) => {
+    const requestId = Number(req.params.requestId);
+    const { studentId } = req.body;
+    await staffService.generateCompletionOtp(requestId, getStaffId(req), studentId ? Number(studentId) : undefined);
+    res.json({ success: true, message: 'Completion OTP generated successfully.' });
+  }),
 
-export const verifyCompletion = asyncHandler(async (req, res) => {
-    const { otp } = verifyCompletionSchema.parse(req.body);
-    const { id } = req.params;
-    const request = await verifyRequestCompletion(req.user.id, id, otp);
-    res.status(200).json(
-        new ApiResponse(200, request, "OTP verified. Request completed successfully")
-    );
-});
+  verifyOtp: asyncHandler(async (req, res) => {
+    const requestId = Number(req.params.requestId);
+    const { otp, studentId } = req.body;
+    await staffService.verifyCompletionOtp(requestId, getStaffId(req), studentId ? Number(studentId) : undefined, otp);
+    res.json({ success: true, message: 'Service request completed successfully.' });
+  }),
 
-export const getProfile = asyncHandler(async (req, res) => {
-    const profile = await getStaffProfile(req.user.id);
-    res.status(200).json(
-        new ApiResponse(200, profile, "Staff profile details retrieved successfully")
-    );
-});
+  requestOccupants: asyncHandler(async (req, res) => {
+    const requestId = Number(req.params.requestId);
+    const data = await staffService.getRequestOccupants(requestId, getStaffId(req));
+    res.json({ success: true, data });
+  }),
 
-export const getNotificationsController = asyncHandler(async (req, res) => {
-    const notifications = await getUserNotifications(req.user.id, "STAFF");
-    res.status(200).json(
-        new ApiResponse(200, notifications, "Notifications history retrieved successfully")
-    );
-});
+  history: asyncHandler(async (req, res) => {
+    const { page, limit } = req.query;
+    const filters = {
+      page: page ? Number(page) : undefined,
+      limit: limit ? Number(limit) : undefined
+    };
+    const data = await staffService.getHistory(getStaffId(req), filters);
+    res.json({ success: true, data });
+  }),
+
+  profile: asyncHandler(async (req, res) => {
+    const data = await staffService.getProfile(getStaffId(req));
+    res.json({ success: true, data });
+  }),
+
+  updateProfile: asyncHandler(async (req, res) => {
+    await staffService.updateProfile(getStaffId(req), req.body);
+    res.json({ success: true, message: 'Profile updated successfully.' });
+  })
+};

@@ -1,161 +1,108 @@
-import {
-    getDashboardStats,
-    getStudents,
-    toggleStudentBlock,
-    getStaff,
-    toggleStaffActive,
-    getBlocks,
-    createNewBlock,
-    removeBlock,
-    getServiceTypes,
-    createNewServiceType,
-    toggleServiceType,
-    getRequests,
-    reassignStaff,
-    getComplaints,
-    resolveComplaint,
-    getFeedbacks
-} from "../services/admin.service.js";
+import { adminService } from '../services/admin.service.js';
+import { asyncHandler } from '../utils/async-handler.js';
 
-import {
-    createBlockSchema,
-    createServiceTypeSchema,
-    toggleBlockStatusSchema,
-    toggleActiveStatusSchema,
-    reassignRequestSchema,
-    queryPaginationSchema
-} from "../validations/admin.validation.js";
+const getAdminId = (req) => Number(req.user.userId);
+const getIpAddress = (req) => req.ip || req.headers['x-forwarded-for'] || req.socket.remoteAddress;
 
-import { asyncHandler } from "../utils/asyncHandler.js";
-import { ApiResponse } from "../utils/ApiResponse.js";
+export const adminController = {
+  dashboard: asyncHandler(async (req, res) => {
+    const data = await adminService.getDashboard();
+    res.json({ success: true, data });
+  }),
 
-export const getDashboard = asyncHandler(async (req, res) => {
-    const stats = await getDashboardStats();
-    res.status(200).json(
-        new ApiResponse(200, stats, "Admin dashboard statistics retrieved successfully")
-    );
-});
+  students: asyncHandler(async (req, res) => {
+    const { block, search, page, limit } = req.query;
+    const data = await adminService.listStudents({
+      block,
+      search,
+      page: page ? Number(page) : undefined,
+      limit: limit ? Number(limit) : undefined
+    });
+    res.json({ success: true, data });
+  }),
 
-export const getStudentsList = asyncHandler(async (req, res) => {
-    const query = queryPaginationSchema.parse(req.query);
-    const result = await getStudents(query);
-    res.status(200).json(
-        new ApiResponse(200, result, "Student list retrieved successfully")
-    );
-});
+  staff: asyncHandler(async (req, res) => {
+    const { block, search, page, limit } = req.query;
+    const data = await adminService.listStaff({
+      block,
+      search,
+      page: page ? Number(page) : undefined,
+      limit: limit ? Number(limit) : undefined
+    });
+    res.json({ success: true, data });
+  }),
 
-export const blockStudent = asyncHandler(async (req, res) => {
-    const { id } = req.params;
-    const { isBlocked } = toggleBlockStatusSchema.parse(req.body);
-    const result = await toggleStudentBlock(id, isBlocked, req.user.id);
-    res.status(200).json(
-        new ApiResponse(200, result, `Student account has been ${isBlocked ? "blocked" : "unblocked"} successfully`)
-    );
-});
+  updateStudentStatus: asyncHandler(async (req, res) => {
+    const studentId = Number(req.params.studentId);
+    const { status } = req.body;
+    await adminService.updateStudentStatus(studentId, status, getAdminId(req), getIpAddress(req));
+    res.json({ success: true, message: 'Student status updated successfully.' });
+  }),
 
-export const getStaffList = asyncHandler(async (req, res) => {
-    const query = queryPaginationSchema.parse(req.query);
-    const result = await getStaff(query);
-    res.status(200).json(
-        new ApiResponse(200, result, "Staff list retrieved successfully")
-    );
-});
+  updateStaffStatus: asyncHandler(async (req, res) => {
+    const staffId = Number(req.params.staffId);
+    const { status } = req.body;
+    await adminService.updateStaffStatus(staffId, status, getAdminId(req), getIpAddress(req));
+    res.json({ success: true, message: 'Staff status updated successfully.' });
+  }),
 
-export const changeStaffStatus = asyncHandler(async (req, res) => {
-    const { id } = req.params;
-    const { isActive } = toggleActiveStatusSchema.parse(req.body);
-    const result = await toggleStaffActive(id, isActive, req.user.id);
-    res.status(200).json(
-        new ApiResponse(200, result, `Staff account has been ${isActive ? "activated" : "deactivated"} successfully`)
-    );
-});
+  requests: asyncHandler(async (req, res) => {
+    const { status, block, serviceType, staffId, page, limit } = req.query;
+    const data = await adminService.listServiceRequests({
+      status,
+      block,
+      serviceType,
+      staffId,
+      page: page ? Number(page) : undefined,
+      limit: limit ? Number(limit) : undefined
+    });
+    res.json({ success: true, data });
+  }),
 
-export const getBlocksList = asyncHandler(async (req, res) => {
-    const query = queryPaginationSchema.parse(req.query);
-    const result = await getBlocks(query);
-    res.status(200).json(
-        new ApiResponse(200, result, "Blocks list retrieved successfully")
-    );
-});
+  complaints: asyncHandler(async (req, res) => {
+    const { status, category, block, page, limit } = req.query;
+    const data = await adminService.listComplaints({
+      status,
+      category,
+      block,
+      page: page ? Number(page) : undefined,
+      limit: limit ? Number(limit) : undefined
+    });
+    res.json({ success: true, data });
+  }),
 
-export const createBlock = asyncHandler(async (req, res) => {
-    const { name } = createBlockSchema.parse(req.body);
-    const block = await createNewBlock(name, req.user.id);
-    res.status(201).json(
-        new ApiResponse(201, block, "Hostel block created successfully")
-    );
-});
+  resolveComplaint: asyncHandler(async (req, res) => {
+    const complaintId = Number(req.params.complaintId);
+    const { status, resolutionNotes } = req.body;
+    await adminService.resolveComplaint(complaintId, status, resolutionNotes, getAdminId(req), getIpAddress(req));
+    res.json({ success: true, message: 'Complaint resolved successfully.' });
+  }),
 
-export const deleteBlock = asyncHandler(async (req, res) => {
-    const { id } = req.params;
-    await removeBlock(id, req.user.id);
-    res.status(200).json(
-        new ApiResponse(200, null, "Hostel block deleted successfully")
-    );
-});
+  feedback: asyncHandler(async (req, res) => {
+    const { page, limit } = req.query;
+    const data = await adminService.listFeedback({
+      page: page ? Number(page) : undefined,
+      limit: limit ? Number(limit) : undefined
+    });
+    res.json({ success: true, data });
+  }),
 
-export const getServiceTypesList = asyncHandler(async (req, res) => {
-    const query = queryPaginationSchema.parse(req.query);
-    const result = await getServiceTypes(query);
-    res.status(200).json(
-        new ApiResponse(200, result, "Service types list retrieved successfully")
-    );
-});
+  analytics: asyncHandler(async (req, res) => {
+    const data = await adminService.getAnalytics();
+    res.json({ success: true, data });
+  }),
 
-export const createServiceType = asyncHandler(async (req, res) => {
-    const { name, description } = createServiceTypeSchema.parse(req.body);
-    const serviceType = await createNewServiceType(name, description, req.user.id);
-    res.status(201).json(
-        new ApiResponse(201, serviceType, "Service type category created successfully")
-    );
-});
+  profile: asyncHandler(async (req, res) => {
+    const data = await adminService.getProfile(getAdminId(req));
+    res.json({ success: true, data });
+  }),
 
-export const toggleServiceTypeStatus = asyncHandler(async (req, res) => {
-    const { id } = req.params;
-    const { isActive } = toggleActiveStatusSchema.parse(req.body);
-    const result = await toggleServiceType(id, isActive, req.user.id);
-    res.status(200).json(
-        new ApiResponse(200, result, `Service type has been ${isActive ? "activated" : "deactivated"} successfully`)
-    );
-});
-
-export const getRequestsList = asyncHandler(async (req, res) => {
-    const query = queryPaginationSchema.parse(req.query);
-    const result = await getRequests(query);
-    res.status(200).json(
-        new ApiResponse(200, result, "Service requests list retrieved successfully")
-    );
-});
-
-export const reassignRequest = asyncHandler(async (req, res) => {
-    const { id } = req.params;
-    const { staffId } = reassignRequestSchema.parse(req.body);
-    const request = await reassignStaff(id, staffId, req.user.id);
-    res.status(200).json(
-        new ApiResponse(200, request, "Service request reassigned successfully")
-    );
-});
-
-export const getComplaintsList = asyncHandler(async (req, res) => {
-    const query = queryPaginationSchema.parse(req.query);
-    const result = await getComplaints(query);
-    res.status(200).json(
-        new ApiResponse(200, result, "Complaints list retrieved successfully")
-    );
-});
-
-export const resolveStudentComplaint = asyncHandler(async (req, res) => {
-    const { id } = req.params;
-    const result = await resolveComplaint(id, req.user.id);
-    res.status(200).json(
-        new ApiResponse(200, result, "Complaint marked as RESOLVED successfully")
-    );
-});
-
-export const getFeedbacksList = asyncHandler(async (req, res) => {
-    const query = queryPaginationSchema.parse(req.query);
-    const result = await getFeedbacks(query);
-    res.status(200).json(
-        new ApiResponse(200, result, "Feedbacks overview list retrieved successfully")
-    );
-});
+  auditLogs: asyncHandler(async (req, res) => {
+    const { page, limit } = req.query;
+    const data = await adminService.listAuditLogs({
+      page: page ? Number(page) : undefined,
+      limit: limit ? Number(limit) : undefined
+    });
+    res.json({ success: true, data });
+  })
+};

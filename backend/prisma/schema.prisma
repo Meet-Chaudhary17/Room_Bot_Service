@@ -7,274 +7,281 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-enum UserRole {
-  ADMIN
-  STAFF
+enum UserType {
   STUDENT
+  STAFF
+  ADMINISTRATOR
 }
 
-enum Gender {
-  MALE
-  FEMALE
-  OTHER
+enum OtpPurpose {
+  REGISTRATION
+  PASSWORD_RESET
+  COMPLETION
 }
 
-enum StaffRole {
+enum ServiceRole {
   CLEANING
-  ELECTRICIAN
-  PLUMBER
-  CARPENTER
-  GENERAL
+  ELECTRICAL_MAINTENANCE
+  PLUMBING
+  AC_MAINTENANCE
+  FURNITURE_REPAIR
 }
 
 enum RequestStatus {
   PENDING
   ASSIGNED
   IN_PROGRESS
-  OTP_PENDING
   COMPLETED
   CANCELLED
-  REJECTED
 }
 
 enum ComplaintStatus {
-  OPEN
-  IN_PROGRESS
+  SUBMITTED
+  UNDER_REVIEW
   RESOLVED
   CLOSED
 }
 
+enum Priority {
+  LOW
+  NORMAL
+  HIGH
+}
+
 enum NotificationType {
-  INFO
-  SUCCESS
-  WARNING
-  ERROR
+  AUTHENTICATION
+  SERVICE_REQUEST
+  COMPLAINT
+  FEEDBACK
+  SYSTEM
 }
 
-model Block {
-  id        String   @id @default(cuid())
-  name      String   @unique
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+model HostelBlock {
+  id          Int       @id @default(autoincrement())
+  blockName   String    @unique @db.VarChar(20) @map("block_name")
+  description String?   @db.VarChar(200)
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
+  students    Student[]
+  staff       Staff[]
 
-  students Student[]
-  staff    Staff[]
-
-  @@index([name])
-}
-
-model Admin {
-  id           String   @id @default(cuid())
-  username     String   @unique
-  email        String   @unique
-  passwordHash String
-  role         UserRole @default(ADMIN)
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  @@index([username])
-  @@index([email])
+  @@map("hostel_block")
 }
 
 model Student {
-  id             String  @id @default(cuid())
-  registrationNo String  @unique
-  name           String
-  email          String  @unique
-  phone          String? @unique @db.VarChar(15)
-  passwordHash   String
-
-  roomNumber String
-
-  gender Gender
-
-  isVerified Boolean @default(false)
-  isBlocked  Boolean @default(false)
-
-  blockId String
-  block   Block  @relation(fields: [blockId], references: [id], onDelete: Restrict)
-
-  requests      ServiceRequest[]
-  complaints    Complaint[]
-  feedbacks     Feedback[]
-  otpRecords    OtpVerification[]
-  notifications Notification[]
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id                 Int              @id @default(autoincrement())
+  registrationNumber String           @unique @db.VarChar(30) @map("registration_number")
+  fullName           String           @db.VarChar(100) @map("full_name")
+  email              String           @unique @db.VarChar(150)
+  phoneNumber        String?          @db.VarChar(20) @map("phone_number")
+  roomNumber         String           @db.VarChar(20) @map("room_number")
+  blockId            Int              @map("block_id")
+  isBlocked          Boolean          @default(false) @map("is_blocked")
+  createdAt          DateTime         @default(now()) @map("created_at")
+  updatedAt          DateTime         @updatedAt @map("updated_at")
+  block              HostelBlock      @relation(fields: [blockId], references: [id], onUpdate: Cascade, onDelete: Restrict)
+  serviceRequests    ServiceRequest[]
+  complaints         Complaint[]
+  feedback           Feedback[]
 
   @@index([blockId])
-  @@index([registrationNo])
-  @@index([email])
+  @@map("student")
 }
 
 model Staff {
-  id           String  @id @default(cuid())
-  employeeId   String  @unique
-  name         String
-  email        String  @unique
-  phone        String? @unique @db.VarChar(15)
-  passwordHash String
-
-  role StaffRole
-
-  isVerified Boolean @default(false)
-  isActive   Boolean @default(true)
-
-  blockId String
-  block   Block  @relation(fields: [blockId], references: [id], onDelete: Restrict)
-
-  assignedRequests ServiceRequest[]
-  feedbacks        Feedback[]
-  notifications    Notification[]
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id               Int              @id @default(autoincrement())
+  fullName         String           @db.VarChar(100) @map("full_name")
+  email            String           @unique @db.VarChar(150)
+  serviceRole      ServiceRole      @map("service_role")
+  blockId          Int              @map("block_id")
+  isActive         Boolean          @default(true) @map("is_active")
+  phoneNumber      String?          @db.VarChar(20) @map("phone_number")
+  createdAt        DateTime         @default(now()) @map("created_at")
+  updatedAt        DateTime         @updatedAt @map("updated_at")
+  block            HostelBlock      @relation(fields: [blockId], references: [id], onUpdate: Cascade, onDelete: Restrict)
+  assignedRequests ServiceRequest[] @relation("AssignedStaff")
+  feedback         Feedback[]
 
   @@index([blockId])
-  @@index([role])
+  @@index([serviceRole])
+  @@map("staff")
 }
 
-model ServiceType {
-  id          String  @id @default(cuid())
-  name        String  @unique
-  description String?
-  isActive    Boolean @default(true)
+model Administrator {
+  id                 Int        @id @default(autoincrement())
+  username           String     @unique @db.VarChar(50)
+  fullName           String     @db.VarChar(100) @map("full_name")
+  email              String?    @unique @db.VarChar(150)
+  createdAt          DateTime   @default(now()) @map("created_at")
+  updatedAt          DateTime   @updatedAt @map("updated_at")
+  resolvedComplaints Complaint[] @relation("ComplaintResolver")
+  auditLogs          AuditLog[]
 
-  requests ServiceRequest[]
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  @@index([isActive])
+  @@map("administrator")
 }
 
-model ServiceRequest {
-  id String @id @default(cuid())
+model AccountCredential {
+  id                 Int      @id @default(autoincrement())
+  userType           UserType @map("user_type")
+  userId             Int      @map("user_id")
+  email              String   @unique @db.VarChar(150)
+  passwordHash       String   @db.VarChar(255) @map("password_hash")
+  emailVerified      Boolean  @default(false) @map("email_verified")
+  lastPasswordChange DateTime? @map("last_password_change")
+  createdAt          DateTime @default(now()) @map("created_at")
+  updatedAt          DateTime @updatedAt @map("updated_at")
 
-  title       String
-  description String
-
-  priority Int @default(1)
-
-  status RequestStatus @default(PENDING)
-
-  otpCode String? @db.VarChar(6)
-
-  otpVerifiedAt DateTime?
-
-  studentId String
-  student   Student @relation(fields: [studentId], references: [id], onDelete: Cascade)
-
-  staffId String?
-  staff   Staff?  @relation(fields: [staffId], references: [id], onDelete: SetNull)
-
-  serviceTypeId String
-  serviceType   ServiceType @relation(fields: [serviceTypeId], references: [id], onDelete: Restrict)
-
-  feedback Feedback?
-
-  assignedAt  DateTime?
-  startedAt   DateTime?
-  completedAt DateTime?
-  cancelledAt DateTime?
-
-  estimatedCompletionTime Int?
-
-  cancellationReason String?
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  @@index([studentId])
-  @@index([staffId])
-  @@index([serviceTypeId])
-  @@index([status])
-  @@index([priority])
-  @@index([createdAt])
-}
-
-model Complaint {
-  id          String @id @default(cuid())
-  subject     String
-  description String
-
-  status ComplaintStatus @default(OPEN)
-
-  studentId String
-  student   Student @relation(fields: [studentId], references: [id], onDelete: Cascade)
-
-  createdAt  DateTime  @default(now())
-  updatedAt  DateTime  @updatedAt
-  resolvedAt DateTime?
-
-  @@index([studentId])
-  @@index([status])
-}
-
-model Feedback {
-  id String @id @default(cuid())
-
-  rating Int @db.SmallInt
-
-  comment String?
-
-  studentId String
-  student   Student @relation(fields: [studentId], references: [id], onDelete: Cascade)
-
-  staffId String
-  staff   Staff  @relation(fields: [staffId], references: [id], onDelete: Cascade)
-
-  requestId String         @unique
-  request   ServiceRequest @relation(fields: [requestId], references: [id], onDelete: Cascade)
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  @@index([studentId])
-  @@index([staffId])
+  @@unique([userType, userId])
+  @@index([userId])
+  @@map("account_credentials")
 }
 
 model OtpVerification {
-  id String @id @default(cuid())
+  id        Int        @id @default(autoincrement())
+  userType  UserType   @map("user_type")
+  userId    Int        @map("user_id")
+  otpCode   String     @db.VarChar(10) @map("otp_code")
+  purpose   OtpPurpose
+  attempts  Int        @default(0)
+  expiresAt DateTime   @map("expires_at")
+  verifiedAt DateTime? @map("verified_at")
+  createdAt DateTime   @default(now()) @map("created_at")
 
-  email String
-
-  otp String @db.VarChar(6)
-
-  expiresAt DateTime
-
-  verified Boolean @default(false)
-
-  studentId String?
-  student   Student? @relation(fields: [studentId], references: [id], onDelete: Cascade)
-
-  createdAt DateTime @default(now())
-
-  @@index([email])
+  @@index([userId])
   @@index([expiresAt])
+  @@index([userType, userId, purpose])
+  @@map("otp_verification")
+}
+
+model ServiceCategory {
+  id           Int              @id @default(autoincrement())
+  categoryName String           @unique @db.VarChar(50) @map("category_name")
+  serviceRole  ServiceRole      @unique @map("service_role")
+  description  String?          @db.VarChar(200)
+  isActive     Boolean          @default(true) @map("is_active")
+  createdAt    DateTime         @default(now()) @map("created_at")
+  updatedAt    DateTime         @updatedAt @map("updated_at")
+  requests     ServiceRequest[]
+
+  @@map("service_category")
+}
+
+model ServiceRequest {
+  id              Int           @id @default(autoincrement())
+  studentId       Int           @map("student_id")
+  categoryId      Int           @map("category_id")
+  assignedStaffId Int?          @map("assigned_staff_id")
+  title           String        @db.VarChar(150)
+  description     String
+  roomNumber      String        @db.VarChar(20) @map("room_number")
+  requestStatus   RequestStatus @default(PENDING) @map("request_status")
+  priority        Priority      @default(NORMAL)
+  assignedAt      DateTime?     @map("assigned_at")
+  startedAt       DateTime?     @map("started_at")
+  completedAt     DateTime?     @map("completed_at")
+  cancelledAt     DateTime?     @map("cancelled_at")
+  createdAt       DateTime      @default(now()) @map("created_at")
+  updatedAt       DateTime      @updatedAt @map("updated_at")
+  student         Student       @relation(fields: [studentId], references: [id], onUpdate: Cascade, onDelete: Restrict)
+  category        ServiceCategory @relation(fields: [categoryId], references: [id], onUpdate: Cascade, onDelete: Restrict)
+  assignedStaff   Staff?        @relation("AssignedStaff", fields: [assignedStaffId], references: [id], onUpdate: Cascade, onDelete: SetNull)
+  feedback        Feedback?
+
+  @@index([studentId])
+  @@index([assignedStaffId])
+  @@index([requestStatus])
+  @@index([categoryId])
+  @@index([createdAt])
+  @@map("service_request")
+}
+
+model ComplaintCategory {
+  id           Int         @id @default(autoincrement())
+  categoryName String      @unique @db.VarChar(50) @map("category_name")
+  description  String?     @db.VarChar(200)
+  isActive     Boolean     @default(true) @map("is_active")
+  createdAt    DateTime    @default(now()) @map("created_at")
+  updatedAt    DateTime    @updatedAt @map("updated_at")
+  complaints   Complaint[]
+
+  @@map("complaint_category")
+}
+
+model Complaint {
+  id              Int             @id @default(autoincrement())
+  studentId       Int             @map("student_id")
+  categoryId      Int             @map("category_id")
+  title           String          @db.VarChar(150)
+  description     String
+  complaintStatus ComplaintStatus @default(SUBMITTED) @map("complaint_status")
+  priority        Priority        @default(NORMAL)
+  resolvedBy      Int?            @map("resolved_by")
+  resolutionNotes String?         @map("resolution_notes")
+  resolvedAt      DateTime?       @map("resolved_at")
+  closedAt        DateTime?       @map("closed_at")
+  createdAt       DateTime        @default(now()) @map("created_at")
+  updatedAt       DateTime        @updatedAt @map("updated_at")
+  student         Student         @relation(fields: [studentId], references: [id], onUpdate: Cascade, onDelete: Restrict)
+  category        ComplaintCategory @relation(fields: [categoryId], references: [id], onUpdate: Cascade, onDelete: Restrict)
+  resolver        Administrator?  @relation("ComplaintResolver", fields: [resolvedBy], references: [id], onUpdate: Cascade, onDelete: Restrict)
+
+  @@index([studentId])
+  @@index([complaintStatus])
+  @@index([categoryId])
+  @@index([resolvedBy])
+  @@index([createdAt])
+  @@map("complaint")
+}
+
+model Feedback {
+  id          Int            @id @default(autoincrement())
+  requestId   Int            @unique @map("request_id")
+  studentId   Int            @map("student_id")
+  staffId     Int            @map("staff_id")
+  rating      Int
+  comments    String?
+  submittedAt DateTime       @default(now()) @map("submitted_at")
+  createdAt   DateTime       @default(now()) @map("created_at")
+  request     ServiceRequest @relation(fields: [requestId], references: [id], onUpdate: Cascade, onDelete: Restrict)
+  student     Student        @relation(fields: [studentId], references: [id], onUpdate: Cascade, onDelete: Restrict)
+  staff       Staff          @relation(fields: [staffId], references: [id], onUpdate: Cascade, onDelete: Restrict)
+
+  @@index([staffId])
+  @@index([studentId])
+  @@index([submittedAt])
+  @@map("feedback")
+}
+
+model AuditLog {
+  id             Int           @id @default(autoincrement())
+  administratorId Int           @map("administrator_id")
+  action         String        @db.VarChar(100)
+  targetTable    String        @db.VarChar(50) @map("target_table")
+  targetRecordId Int?          @map("target_record_id")
+  description    String?
+  ipAddress      String?       @db.VarChar(45) @map("ip_address")
+  createdAt      DateTime      @default(now()) @map("created_at")
+  administrator  Administrator @relation(fields: [administratorId], references: [id], onUpdate: Cascade, onDelete: Restrict)
+
+  @@index([administratorId])
+  @@index([action])
+  @@index([targetTable])
+  @@index([createdAt])
+  @@map("audit_log")
 }
 
 model Notification {
-  id String @id @default(cuid())
+  id        Int              @id @default(autoincrement())
+  userId    Int              @map("user_id")
+  role      UserType
+  title     String           @db.VarChar(150)
+  message   String
+  type      NotificationType
+  isRead    Boolean          @default(false) @map("is_read")
+  createdAt DateTime         @default(now()) @map("created_at")
 
-  title   String
-  message String
-
-  type NotificationType @default(INFO)
-
-  isRead Boolean @default(false)
-
-  studentId String?
-  student   Student? @relation(fields: [studentId], references: [id], onDelete: Cascade)
-
-  staffId String?
-  staff   Staff?  @relation(fields: [staffId], references: [id], onDelete: Cascade)
-
-  createdAt DateTime @default(now())
-
-  @@index([studentId])
-  @@index([staffId])
-  @@index([isRead])
+  @@index([role, userId, isRead])
+  @@index([createdAt])
+  @@map("notification")
 }
+

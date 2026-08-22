@@ -1,23 +1,60 @@
-version: "3.9"
-
 services:
   postgres:
-    image: postgres:17
-
+    image: postgres:16-alpine
     container_name: room-bot-postgres
-
-    restart: always
-
+    restart: unless-stopped
     environment:
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres
-      POSTGRES_DB: room_bot_service
-
-    ports:
-      - "5432:5432"
-
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
     volumes:
       - postgres_data:/var/lib/postgresql/data
+    networks:
+      - room-bot-network
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: room-bot-backend
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}?schema=public
+    depends_on:
+      postgres:
+        condition: service_healthy
+    ports:
+      - "5000:5000"
+    networks:
+      - room-bot-network
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      args:
+        VITE_API_BASE_URL: ${VITE_API_BASE_URL}
+        VITE_APP_NAME: ${VITE_APP_NAME}
+        VITE_ENVIRONMENT: ${VITE_ENVIRONMENT}
+    container_name: room-bot-frontend
+    restart: unless-stopped
+    depends_on:
+      - backend
+    ports:
+      - "5173:80"
+    networks:
+      - room-bot-network
 
 volumes:
   postgres_data:
+
+networks:
+  room-bot-network:
+    driver: bridge
+

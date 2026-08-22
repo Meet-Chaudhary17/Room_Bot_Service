@@ -1,48 +1,25 @@
-import express from "express";
-import cors from "cors";
-import helmet from "helmet";
-import compression from "compression";
-import cookieParser from "cookie-parser";
-import morgan from "morgan";
+import cors from 'cors';
+import express from 'express';
+import helmet from 'helmet';
+import morgan from 'morgan';
+import { env } from './config/env.js';
+import { apiRouter } from './routes/index.js';
+import { errorHandler } from './middleware/error-handler.js';
+import { notFoundHandler } from './middleware/not-found-handler.js';
+import { requestId } from './middleware/request-id.js';
+import { apiRateLimiter } from './middleware/rate-limit.js';
+import { logger } from './utils/logger.js';
 
-import authRoutes from "./routes/auth.routes.js";
-import studentRoutes from "./routes/student.routes.js";
-import staffRoutes from "./routes/staff.routes.js";
-import adminRoutes from "./routes/admin.routes.js";
-import notFound from "./middleware/notFound.middleware.js";
-import errorHandler from "./middleware/error.middleware.js";
+export const app = express();
 
-const app = express();
-
+app.disable('x-powered-by');
 app.use(helmet());
-app.use(cors({
-    origin: true,
-    credentials: true
-}));
-app.use(compression());
-app.use(cookieParser());
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
-app.use(morgan("dev"));
-
-// Base route for health check
-app.get("/", (req, res) => {
-    res.json({
-        success: true,
-        message: "Room Bot Service API is running"
-    });
-});
-
-// API Routes
-app.use("/api/v1/auth", authRoutes);
-app.use("/api/v1/students", studentRoutes);
-app.use("/api/v1/staff", staffRoutes);
-app.use("/api/v1/admin", adminRoutes);
-
-// Wildcard 404 handler
-app.use(notFound);
-
-// Global Error handler
+app.use(cors({ origin: env.CLIENT_URL, methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE'], credentials: false }));
+app.use(express.json({ limit: '100kb' }));
+app.use(requestId);
+app.use(morgan('combined', { stream: { write: (message) => logger.info({ http: message.trim() }, 'HTTP request') } }));
+app.use('/api', apiRateLimiter);
+app.use('/api/v1', apiRouter);
+app.use(notFoundHandler);
 app.use(errorHandler);
 
-export default app;

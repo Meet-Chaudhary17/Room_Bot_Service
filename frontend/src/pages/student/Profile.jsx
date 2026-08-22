@@ -1,73 +1,175 @@
-import React from 'react';
-import { User, Mail, BookOpen, Home, Calendar } from 'lucide-react';
-import useAuth from '../../hooks/useAuth';
-import { formatDate } from '../../utils/helpers';
+import React, { useState, useEffect } from 'react';
+import { useAuth } from '../../context/AuthContext.jsx';
+import { studentService } from '../../services/student.service.js';
+import { RefreshCw, Save, CheckCircle2, AlertCircle } from 'lucide-react';
 
-export default function Profile() {
-  const { user } = useAuth();
+export const Profile = () => {
+  const { user, updateUserProfile } = useAuth();
+  const [profile, setProfile] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  
+  const [name, setName] = useState('');
+  const [phoneNumber, setPhoneNumber] = useState('');
+  
+  const [error, setError] = useState('');
+  const [success, setSuccess] = useState('');
 
-  const getInitials = (name) => {
-    return name ? name.split(' ').map(n => n[0]).join('').toUpperCase() : 'KA';
+  const fetchProfile = async () => {
+    try {
+      setLoading(true);
+      const res = await studentService.getProfile();
+      if (res.success) {
+        setProfile(res.data);
+        setName(res.data.name);
+        setPhoneNumber(res.data.phoneNumber || '');
+      }
+    } catch (err) {
+      console.error(err);
+      setError('Failed to fetch profile info.');
+    } finally {
+      setLoading(false);
+    }
   };
 
+  useEffect(() => {
+    fetchProfile();
+  }, []);
+
+  const handleSave = async (e) => {
+    e.preventDefault();
+    setError('');
+    setSuccess('');
+    setSaving(true);
+
+    try {
+      const res = await studentService.updateProfile({
+        name,
+        phoneNumber
+      });
+
+      if (res.success) {
+        setSuccess('Profile updated successfully.');
+        updateUserProfile({ fullName: name, phoneNumber });
+      }
+    } catch (err) {
+      console.error(err);
+      setError(err.response?.data?.message || 'Failed to update profile.');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="py-12 text-center text-slate-400 flex flex-col items-center justify-center">
+        <RefreshCw size={28} className="animate-spin mb-2" /> Loading profile settings...
+      </div>
+    );
+  }
+
   return (
-    <div className="max-w-2xl mx-auto bg-white border border-slate-100 rounded-3xl overflow-hidden shadow-sm">
-      {/* Profile Banner */}
-      <div className="h-32 bg-indigo-600 relative flex items-end justify-center sm:justify-start px-6 pb-4">
-        <div className="absolute top-1/2 left-6 sm:translate-y-2 translate-y-4">
-          <div className="w-24 h-24 rounded-full border-4 border-white bg-indigo-100 flex items-center justify-center text-indigo-600 font-extrabold text-2xl shadow-md">
-            {getInitials(user?.name)}
-          </div>
-        </div>
+    <div className="max-w-2xl mx-auto space-y-6">
+      <div>
+        <h1 className="text-2xl font-bold text-white">Profile Settings</h1>
+        <p className="text-slate-400 text-sm mt-1">Review your details and update contact information</p>
       </div>
 
-      {/* Profile Details */}
-      <div className="pt-16 pb-8 px-6 space-y-6">
-        <div>
-          <h2 className="text-xl font-bold text-slate-800">{user?.name || 'Student Profile'}</h2>
-          <p className="text-xs font-semibold text-slate-400 mt-1">Hostel Student Resident</p>
+      {error && (
+        <div className="flex items-center bg-red-500/10 border border-red-500/20 text-red-400 p-3 rounded-xl text-sm">
+          <AlertCircle size={16} className="mr-2 shrink-0" />
+          <span>{error}</span>
+        </div>
+      )}
+
+      {success && (
+        <div className="flex items-center bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 p-3 rounded-xl text-sm">
+          <CheckCircle2 size={16} className="mr-2 shrink-0" />
+          <span>{success}</span>
+        </div>
+      )}
+
+      <form onSubmit={handleSave} className="bg-slate-900/20 border border-slate-800 rounded-2xl p-6 space-y-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div>
+            <label className="block text-xs font-semibold text-slate-400 uppercase tracking-widest mb-1.5">Registration Number</label>
+            <input
+              type="text"
+              disabled
+              value={profile?.registrationNumber || ''}
+              className="w-full px-3 py-2.5 bg-slate-950/40 border border-slate-800/80 text-slate-500 rounded-xl text-sm cursor-not-allowed focus:outline-none"
+            />
+          </div>
+
+          <div>
+            <label className="block text-xs font-semibold text-slate-400 uppercase tracking-widest mb-1.5">Email Address</label>
+            <input
+              type="text"
+              disabled
+              value={profile?.email || ''}
+              className="w-full px-3 py-2.5 bg-slate-950/40 border border-slate-800/80 text-slate-500 rounded-xl text-sm cursor-not-allowed focus:outline-none"
+            />
+          </div>
         </div>
 
-        <div className="border-t border-slate-100 pt-6 grid grid-cols-1 sm:grid-cols-2 gap-4">
-          {/* Email */}
-          <div className="flex items-center gap-3 p-4 bg-slate-50 rounded-xl">
-            <Mail className="w-5 h-5 text-indigo-600" />
-            <div>
-              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wide">Email</p>
-              <p className="text-xs font-bold text-slate-700">{user?.email}</p>
-            </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div>
+            <label className="block text-xs font-semibold text-slate-400 uppercase tracking-widest mb-1.5">Hostel Block</label>
+            <input
+              type="text"
+              disabled
+              value={profile?.block || ''}
+              className="w-full px-3 py-2.5 bg-slate-950/40 border border-slate-800/80 text-slate-500 rounded-xl text-sm cursor-not-allowed focus:outline-none"
+            />
           </div>
 
-          {/* Registration No */}
-          <div className="flex items-center gap-3 p-4 bg-slate-50 rounded-xl">
-            <BookOpen className="w-5 h-5 text-indigo-600" />
-            <div>
-              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wide">Registration ID</p>
-              <p className="text-xs font-bold text-slate-700">{user?.registrationNo}</p>
-            </div>
-          </div>
-
-          {/* Room Coordinate */}
-          <div className="flex items-center gap-3 p-4 bg-slate-50 rounded-xl">
-            <Home className="w-5 h-5 text-indigo-600" />
-            <div>
-              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wide">Hostel Coordinates</p>
-              <p className="text-xs font-bold text-slate-700">
-                Room {user?.roomNumber || 'N/A'} · Block {user?.block?.name || user?.blockId || 'N/A'}
-              </p>
-            </div>
-          </div>
-
-          {/* Joined Date */}
-          <div className="flex items-center gap-3 p-4 bg-slate-50 rounded-xl">
-            <Calendar className="w-5 h-5 text-indigo-600" />
-            <div>
-              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wide">Member Since</p>
-              <p className="text-xs font-bold text-slate-700">{formatDate(user?.createdAt)}</p>
-            </div>
+          <div>
+            <label className="block text-xs font-semibold text-slate-400 uppercase tracking-widest mb-1.5">Room Number</label>
+            <input
+              type="text"
+              disabled
+              value={profile?.roomNumber || ''}
+              className="w-full px-3 py-2.5 bg-slate-950/40 border border-slate-800/80 text-slate-500 rounded-xl text-sm cursor-not-allowed focus:outline-none"
+            />
           </div>
         </div>
-      </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-4 border-t border-slate-800/50">
+          <div>
+            <label className="block text-xs font-semibold text-slate-300 uppercase tracking-widest mb-1.5">Full Name</label>
+            <input
+              type="text"
+              required
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              className="w-full px-3 py-2.5 bg-slate-950 border border-slate-800 text-white rounded-xl text-sm focus:outline-none focus:border-blue-500/80 transition-colors"
+            />
+          </div>
+
+          <div>
+            <label className="block text-xs font-semibold text-slate-300 uppercase tracking-widest mb-1.5">Phone Number</label>
+            <input
+              type="tel"
+              value={phoneNumber}
+              onChange={(e) => setPhoneNumber(e.target.value)}
+              placeholder="Enter phone number"
+              className="w-full px-3 py-2.5 bg-slate-950 border border-slate-800 text-white rounded-xl text-sm focus:outline-none focus:border-blue-500/80 transition-colors"
+            />
+          </div>
+        </div>
+
+        <div className="flex justify-end pt-4 border-t border-slate-800/50">
+          <button
+            type="submit"
+            disabled={saving}
+            className="flex items-center px-6 py-2.5 bg-blue-600 hover:bg-blue-500 text-white rounded-xl text-sm font-semibold transition-all duration-200 disabled:opacity-50"
+          >
+            {saving ? <RefreshCw className="animate-spin mr-2" size={16} /> : <Save className="mr-1.5" size={16} />}
+            Save Changes
+          </button>
+        </div>
+      </form>
     </div>
   );
-}
+};
+export default Profile;

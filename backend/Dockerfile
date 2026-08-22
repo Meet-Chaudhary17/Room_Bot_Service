@@ -1,21 +1,16 @@
-# Stage 1: Build
-FROM node:22-alpine AS builder
+FROM node:22-alpine AS dependencies
 WORKDIR /app
 COPY package*.json ./
 RUN npm ci
-COPY prisma ./prisma
-RUN npx prisma generate
-COPY . .
 
-# Stage 2: Production Run
-FROM node:22-alpine AS runner
+FROM node:22-alpine AS production
 WORKDIR /app
 ENV NODE_ENV=production
+COPY --from=dependencies /app/node_modules ./node_modules
 COPY package*.json ./
-RUN npm ci --only=production
-COPY --from=builder /app/node_modules/.prisma ./node_modules/.prisma
-COPY --from=builder /app/node_modules/@prisma/client ./node_modules/@prisma/client
 COPY prisma ./prisma
 COPY src ./src
+RUN npx prisma generate
 EXPOSE 5000
-CMD ["node", "src/server.js"]
+CMD ["sh", "-c", "npx prisma migrate deploy && node prisma/seed.js && node src/server.js"]
+

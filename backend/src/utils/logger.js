@@ -1,23 +1,14 @@
-import winston from "winston";
+function write(level, metadata, message) {
+  const entry = JSON.stringify({ level, message, timestamp: new Date().toISOString(), ...metadata });
+  if (level === 'error') {
+    console.error(entry);
+  } else {
+    console.log(entry);
+  }
+}
 
-const format = winston.format.combine(
-    winston.format.timestamp({ format: "YYYY-MM-DD HH:mm:ss" }),
-    winston.format.errors({ stack: true }),
-    winston.format.splat(),
-    process.env.NODE_ENV === "production"
-        ? winston.format.json()
-        : winston.format.combine(
-              winston.format.colorize(),
-              winston.format.printf(({ timestamp, level, message, stack }) => {
-                  return `[${timestamp}] ${level}: ${message}${stack ? `\n${stack}` : ""}`;
-              })
-          )
-);
-
-export const logger = winston.createLogger({
-    level: process.env.NODE_ENV === "production" ? "info" : "debug",
-    format,
-    transports: [
-        new winston.transports.Console()
-    ]
+export const logger = Object.freeze({
+  info: (metadata, message) => write('info', metadata, message),
+  error: (metadata, message) => write('error', metadata, message),
 });
+

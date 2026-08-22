@@ -1,98 +1,234 @@
-import prisma from "../config/prisma.js";
+import { BaseRepository } from './base.repository.js';
 
-export async function getStaffDashboardStats(staffId, tx = prisma) {
-    const counts = await tx.serviceRequest.groupBy({
-        by: ["status"],
-        where: { staffId },
-        _count: {
-            id: true
-        }
+export class StaffRepository extends BaseRepository {
+  profile(id) {
+    return this.prisma.staff.findUnique({
+      where: { id },
+      include: { block: true }
     });
-    return counts;
-}
+  }
 
-export async function getStaffRequests(staffId, filters, sort, skip, take, tx = prisma) {
-    return await tx.serviceRequest.findMany({
-        where: {
-            staffId,
-            ...filters
-        },
-        orderBy: {
-            createdAt: sort
-        },
-        skip,
-        take,
-        include: {
-            serviceType: true,
-            student: {
-                select: {
-                    id: true,
-                    name: true,
-                    roomNumber: true,
-                    phone: true,
-                    blockId: true,
-                    block: {
-                        select: { name: true }
-                    }
-                }
-            }
-        }
+  updateProfile(id, data) {
+    return this.prisma.staff.update({
+      where: { id },
+      data
     });
-}
+  }
 
-export async function getStaffRequestCount(staffId, filters, tx = prisma) {
-    return await tx.serviceRequest.count({
-        where: {
-            staffId,
-            ...filters
-        }
-    });
-}
-
-export async function findRequestByIdAndStaffId(id, staffId, tx = prisma) {
-    return await tx.serviceRequest.findFirst({
-        where: {
-            id,
-            staffId
-        }
-    });
-}
-
-export async function updateRequestStatus(id, status, extraFields = {}, tx = prisma) {
-    return await tx.serviceRequest.update({
-        where: { id },
-        data: {
-            status,
-            ...extraFields
-        }
-    });
-}
-
-export async function getStaffFeedbackStats(staffId, tx = prisma) {
-    const aggregation = await tx.feedback.aggregate({
-        where: { staffId },
-        _avg: {
-            rating: true
-        },
-        _count: {
-            id: true
-        }
-    });
-    return {
-        averageRating: aggregation._avg.rating || 0,
-        feedbackCount: aggregation._count.id || 0
+  async assignedRequests(staffId, { status, priority, search, page = 1, limit = 10 } = {}) {
+    const where = {
+      assignedStaffId: staffId,
+      requestStatus: { in: ['ASSIGNED', 'IN_PROGRESS'] }
     };
-}
 
-export async function getStaffProfileDetails(staffId, tx = prisma) {
-    return await tx.staff.findUnique({
-        where: { id: staffId },
-        include: {
-            block: {
-                select: {
-                    name: true
-                }
-            }
+    if (status) {
+      const normalizedStatus = status === 'In Progress' ? 'IN_PROGRESS' : status === 'Assigned' ? 'ASSIGNED' : status.toUpperCase();
+      if (['ASSIGNED', 'IN_PROGRESS'].includes(normalizedStatus)) {
+        where.requestStatus = normalizedStatus;
+      }
+    }
+
+    if (priority) {
+      where.priority = priority.toUpperCase();
+    }
+
+    if (search) {
+      where.OR = [
+        { roomNumber: { contains: search, mode: 'insensitive' } },
+        { title: { contains: search, mode: 'insensitive' } },
+        { description: { contains: search, mode: 'insensitive' } },
+        {
+          student: {
+            fullName: { contains: search, mode: 'insensitive' }
+          }
         }
+      ];
+    }
+
+    const skip = (page - 1) * limit;
+
+    const [items, total] = await this.prisma.$transaction([
+      this.prisma.serviceRequest.findMany({
+        where,
+        include: {
+          student: {
+            include: {
+              block: true
+            }
+          },
+          category: true
+        },
+        orderBy: { createdAt: 'desc' },
+        skip,
+        take: limit
+      }),
+      this.prisma.serviceRequest.count({ where })
+    ]);
+
+    return { items, total };
+  }
+
+  requestDetails(requestId, staffId) {
+    return this.prisma.serviceRequest.findFirst({
+      where: {
+        id: requestId,
+        assignedStaffId: staffId
+      },
+      include: {
+        student: {
+          include: {
+            block: true
+          }
+        },
+        category: true
+      }
     });
+  }
+
+  updateRequestStatus(requestId, staffId, status, startedAt = null) {
+    const data = { requestStatus: status };
+    if (startedAt) {
+      data.startedAt = startedAt;
+    }
+    return this.prisma.serviceRequest.updateMany({
+      where: {
+        id: requestId,
+        assignedStaffId: staffId,
+        requestStatus: 'ASSIGNED'
+      },
+      data
+    });
+  }
+
+  createOtp(data) {
+    return this.prisma.otpVerification.create({
+      data
+    });
+  }
+
+  findRoomOccupants(blockId, roomNumber) {
+    return this.prisma.student.findMany({
+      where: {
+        blockId,
+        roomNumber,
+        isBlocked: false
+      },
+      select: {
+        id: true,
+        fullName: true,
+        email: true
+      }
+    });
+  }
+
+  findLatestOtp(studentId) {
+    return this.prisma.otpVerification.findFirst({
+      where: {
+        userType: 'STUDENT',
+        userId: studentId,
+        purpose: 'COMPLETION',
+        verifiedAt: null
+      },
+      orderBy: { createdAt: 'desc' }
+    });
+  }
+
+  updateOtp(otpId, data) {
+    return this.prisma.otpVerification.update({
+      where: { id: otpId },
+      data
+    });
+  }
+
+  completeRequest(requestId, staffId, otpId, completedAt) {
+    return this.prisma.$transaction(async (tx) => {
+      // Mark OTP as verified
+      await tx.otpVerification.update({
+        where: { id: otpId },
+        data: { verifiedAt: completedAt }
+      });
+
+      // Update Service Request status to COMPLETED
+      await tx.serviceRequest.updateMany({
+        where: {
+          id: requestId,
+          assignedStaffId: staffId,
+          requestStatus: 'IN_PROGRESS'
+        },
+        data: {
+          requestStatus: 'COMPLETED',
+          completedAt
+        }
+      });
+    });
+  }
+
+  async serviceHistory(staffId, { page = 1, limit = 10 } = {}) {
+    const where = {
+      assignedStaffId: staffId,
+      requestStatus: 'COMPLETED'
+    };
+
+    const skip = (page - 1) * limit;
+
+    const [items, total] = await this.prisma.$transaction([
+      this.prisma.serviceRequest.findMany({
+        where,
+        include: {
+          category: true,
+          feedback: true
+        },
+        orderBy: { completedAt: 'desc' },
+        skip,
+        take: limit
+      }),
+      this.prisma.serviceRequest.count({ where })
+    ]);
+
+    return { items, total };
+  }
+
+  async dashboardStats(staffId) {
+    // Find assigned (Assigned or In Progress)
+    const assignedRequests = await this.prisma.serviceRequest.count({
+      where: {
+        assignedStaffId: staffId,
+        requestStatus: { in: ['ASSIGNED', 'IN_PROGRESS'] }
+      }
+    });
+
+    // Find pending (Assigned but not started)
+    const pendingRequests = await this.prisma.serviceRequest.count({
+      where: {
+        assignedStaffId: staffId,
+        requestStatus: 'ASSIGNED'
+      }
+    });
+
+    // Find completed today
+    const todayStart = new Date();
+    todayStart.setHours(0, 0, 0, 0);
+    const completedToday = await this.prisma.serviceRequest.count({
+      where: {
+        assignedStaffId: staffId,
+        requestStatus: 'COMPLETED',
+        completedAt: { gte: todayStart }
+      }
+    });
+
+    // Average rating
+    const ratingAggregate = await this.prisma.feedback.aggregate({
+      _avg: { rating: true },
+      where: { staffId }
+    });
+
+    const averageRating = ratingAggregate._avg.rating ? parseFloat(ratingAggregate._avg.rating.toFixed(1)) : 0;
+
+    return {
+      assignedRequests,
+      pendingRequests,
+      completedToday,
+      averageRating
+    };
+  }
 }

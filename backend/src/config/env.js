@@ -1,25 +1,28 @@
-import dotenv from "dotenv";
-import { z } from "zod";
+import 'dotenv/config';
+import { z } from 'zod';
 
-dotenv.config();
-
-const envSchema = z.object({
-    NODE_ENV: z.enum(["development", "production", "test"]).default("development"),
-    PORT: z.coerce.number().default(5000),
-    DATABASE_URL: z.string().url("DATABASE_URL must be a valid URL"),
-    JWT_SECRET: z.string().min(8, "JWT_SECRET must be at least 8 characters long"),
-    SMTP_HOST: z.string().min(1, "SMTP_HOST is required"),
-    SMTP_PORT: z.coerce.number().default(587),
-    SMTP_USER: z.string().min(1, "SMTP_USER is required"),
-    SMTP_PASS: z.string().min(1, "SMTP_PASS is required")
+const environmentSchema = z.object({
+  NODE_ENV: z.enum(['development', 'test', 'staging', 'production']).default('development'),
+  PORT: z.coerce.number().int().min(1).max(65535).default(5000),
+  DATABASE_URL: z.string().url(),
+  JWT_SECRET: z.string().min(32),
+  JWT_EXPIRES_IN: z.string().min(1).default('24h'),
+  OTP_EXPIRY_MINUTES: z.coerce.number().int().refine((value) => value === 10, 'OTP expiry must be 10 minutes'),
+  CLIENT_URL: z.string().url(),
+  SMTP_HOST: z.string().min(1).optional(),
+  SMTP_PORT: z.coerce.number().int().min(1).max(65535).optional(),
+  SMTP_SECURE: z.enum(['true', 'false']).optional(),
+  SMTP_USER: z.string().min(1).optional(),
+  SMTP_PASS: z.string().min(1).optional(),
+  EMAIL_FROM: z.string().min(1).optional(),
 });
 
-const parsed = envSchema.safeParse(process.env);
+const parsed = environmentSchema.safeParse(process.env);
 
 if (!parsed.success) {
-    console.error("❌ Environment configuration validation failed:");
-    console.error(JSON.stringify(parsed.error.format(), null, 2));
-    process.exit(1);
+  const issues = parsed.error.issues.map((issue) => `${issue.path.join('.')}: ${issue.message}`).join('; ');
+  throw new Error(`Invalid environment configuration: ${issues}`);
 }
 
-export const env = parsed.data;
+export const env = Object.freeze(parsed.data);
+

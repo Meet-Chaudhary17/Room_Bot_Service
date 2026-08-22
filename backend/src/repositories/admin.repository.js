@@ -1,243 +1,359 @@
-import prisma from "../config/prisma.js";
+import { BaseRepository } from './base.repository.js';
 
-export async function getDashboardAnalytics(tx = prisma) {
-    const totalStudents = await tx.student.count();
-    const blockedStudents = await tx.student.count({ where: { isBlocked: true } });
-    const totalStaff = await tx.staff.count();
-    const activeStaff = await tx.staff.count({ where: { isActive: true, isVerified: true } });
-
-    // Request counts
-    const pendingRequests = await tx.serviceRequest.count({ where: { status: "PENDING" } });
-    const assignedRequests = await tx.serviceRequest.count({ where: { status: "ASSIGNED" } });
-    const inProgressRequests = await tx.serviceRequest.count({ where: { status: "IN_PROGRESS" } });
-    const otpPendingRequests = await tx.serviceRequest.count({ where: { status: "OTP_PENDING" } });
-    const completedRequests = await tx.serviceRequest.count({ where: { status: "COMPLETED" } });
-
-    // Complaints counts
-    const openComplaints = await tx.complaint.count({ where: { status: "OPEN" } });
-    const resolvedComplaints = await tx.complaint.count({ where: { status: "RESOLVED" } });
-
-    // Feedback average
-    const feedbackAgg = await tx.feedback.aggregate({
-        _avg: {
-            rating: true
-        }
+export class AdminRepository extends BaseRepository {
+  profile(id) {
+    return this.prisma.administrator.findUnique({
+      where: { id },
+      select: { id: true, fullName: true, username: true, email: true }
     });
+  }
+
+  async dashboardStats() {
+    const totalStudents = await this.prisma.student.count();
+    const totalStaff = await this.prisma.staff.count();
+
+    const activeRequests = await this.prisma.serviceRequest.count({
+      where: { requestStatus: { in: ['PENDING', 'ASSIGNED', 'IN_PROGRESS'] } }
+    });
+
+    const completedRequests = await this.prisma.serviceRequest.count({
+      where: { requestStatus: 'COMPLETED' }
+    });
+
+    const activeComplaints = await this.prisma.complaint.count({
+      where: { complaintStatus: { in: ['SUBMITTED', 'UNDER_REVIEW'] } }
+    });
+
+    const ratingAggregate = await this.prisma.feedback.aggregate({
+      _avg: { rating: true }
+    });
+    const averageRating = ratingAggregate._avg.rating ? parseFloat(ratingAggregate._avg.rating.toFixed(1)) : 0;
 
     return {
-        totalStudents,
-        blockedStudents,
-        totalStaff,
-        activeStaff,
-        pendingRequests,
-        assignedRequests,
-        inProgressRequests,
-        otpPendingRequests,
-        completedRequests,
-        openComplaints,
-        resolvedComplaints,
-        averageFeedbackRating: feedbackAgg._avg.rating || 0
+      totalStudents,
+      totalStaff,
+      activeRequests,
+      completedRequests,
+      activeComplaints,
+      averageRating
     };
-}
+  }
 
-export async function getStudentsList(filters, skip, take, tx = prisma) {
-    return await tx.student.findMany({
-        where: filters,
+  async students({ block, search, page = 1, limit = 20 } = {}) {
+    const where = {};
+
+    if (block) {
+      where.block = { blockName: block };
+    }
+
+    if (search) {
+      where.OR = [
+        { fullName: { contains: search, mode: 'insensitive' } },
+        { email: { contains: search, mode: 'insensitive' } },
+        { registrationNumber: { contains: search, mode: 'insensitive' } },
+        { roomNumber: { contains: search, mode: 'insensitive' } }
+      ];
+    }
+
+    const skip = (page - 1) * limit;
+
+    const [items, total] = await this.prisma.$transaction([
+      this.prisma.student.findMany({
+        where,
+        include: { block: true },
+        orderBy: { fullName: 'asc' },
         skip,
-        take,
-        orderBy: { createdAt: "desc" },
+        take: limit
+      }),
+      this.prisma.student.count({ where })
+    ]);
+
+    return { items, total };
+  }
+
+  async staff({ block, search, page = 1, limit = 20 } = {}) {
+    const where = {};
+
+    if (block) {
+      where.block = { blockName: block };
+    }
+
+    if (search) {
+      where.OR = [
+        { fullName: { contains: search, mode: 'insensitive' } },
+        { email: { contains: search, mode: 'insensitive' } }
+      ];
+    }
+
+    const skip = (page - 1) * limit;
+
+    const [items, total] = await this.prisma.$transaction([
+      this.prisma.staff.findMany({
+        where,
         include: {
-            block: {
-                select: { name: true }
-            }
-        }
-    });
-}
+          block: true,
+          assignedRequests: true,
+          feedback: true
+        },
+        orderBy: { fullName: 'asc' },
+        skip,
+        take: limit
+      }),
+      this.prisma.staff.count({ where })
+    ]);
 
-export async function getStudentsCount(filters, tx = prisma) {
-    return await tx.student.count({ where: filters });
-}
+    return { items, total };
+  }
 
-export async function updateStudentBlocked(id, isBlocked, tx = prisma) {
-    return await tx.student.update({
-        where: { id },
+  updateStudentStatus(studentId, isBlocked, adminId, ipAddress) {
+    return this.prisma.$transaction(async (tx) => {
+      const student = await tx.student.update({
+        where: { id: studentId },
         data: { isBlocked }
-    });
-}
+      });
 
-export async function getStaffList(filters, skip, take, tx = prisma) {
-    return await tx.staff.findMany({
-        where: filters,
-        skip,
-        take,
-        orderBy: { createdAt: "desc" },
-        include: {
-            block: {
-                select: { name: true }
-            }
+      await tx.auditLog.create({
+        data: {
+          administratorId: adminId,
+          action: isBlocked ? 'BLOCK_STUDENT' : 'UNBLOCK_STUDENT',
+          targetTable: 'student',
+          targetRecordId: studentId,
+          description: `Student ${student.fullName} (${student.registrationNumber}) status changed to ${isBlocked ? 'Blocked' : 'Active'}`,
+          ipAddress
         }
+      });
+
+      return student;
     });
-}
+  }
 
-export async function getStaffCount(filters, tx = prisma) {
-    return await tx.staff.count({ where: filters });
-}
-
-export async function updateStaffActive(id, isActive, tx = prisma) {
-    return await tx.staff.update({
-        where: { id },
+  updateStaffStatus(staffId, isActive, adminId, ipAddress) {
+    return this.prisma.$transaction(async (tx) => {
+      const staff = await tx.staff.update({
+        where: { id: staffId },
         data: { isActive }
-    });
-}
+      });
 
-export async function getBlocksList(skip, take, tx = prisma) {
-    return await tx.block.findMany({
-        skip,
-        take,
-        orderBy: { name: "asc" },
-        include: {
-            _count: {
-                select: {
-                    students: true,
-                    staff: true
-                }
-            }
+      await tx.auditLog.create({
+        data: {
+          administratorId: adminId,
+          action: isActive ? 'UNBLOCK_STAFF' : 'BLOCK_STAFF',
+          targetTable: 'staff',
+          targetRecordId: staffId,
+          description: `Staff ${staff.fullName} status changed to ${isActive ? 'Active' : 'Blocked'}`,
+          ipAddress
         }
+      });
+
+      return staff;
     });
-}
+  }
 
-export async function getBlocksCount(tx = prisma) {
-    return await tx.block.count();
-}
+  async serviceRequests({ status, block, serviceType, staffId, page = 1, limit = 10 } = {}) {
+    const where = {};
 
-export async function createBlock(name, tx = prisma) {
-    return await tx.block.create({
-        data: { name }
-    });
-}
+    if (status) {
+      const normalizedStatus = status === 'In Progress' ? 'IN_PROGRESS' : status === 'Pending' ? 'PENDING' : status === 'Assigned' ? 'ASSIGNED' : status === 'Completed' ? 'COMPLETED' : status === 'Cancelled' ? 'CANCELLED' : status.toUpperCase();
+      where.requestStatus = normalizedStatus;
+    }
 
-export async function findBlockWithRelations(id, tx = prisma) {
-    return await tx.block.findUnique({
-        where: { id },
+    if (block) {
+      where.student = { block: { blockName: block } };
+    }
+
+    if (serviceType) {
+      where.category = { categoryName: serviceType };
+    }
+
+    if (staffId) {
+      where.assignedStaffId = Number(staffId);
+    }
+
+    const skip = (page - 1) * limit;
+
+    const [items, total] = await this.prisma.$transaction([
+      this.prisma.serviceRequest.findMany({
+        where,
         include: {
-            students: { take: 1 },
-            staff: { take: 1 }
-        }
-    });
-}
-
-export async function deleteBlock(id, tx = prisma) {
-    return await tx.block.delete({
-        where: { id }
-    });
-}
-
-export async function getServiceTypesList(skip, take, tx = prisma) {
-    return await tx.serviceType.findMany({
+          student: { include: { block: true } },
+          assignedStaff: true,
+          category: true
+        },
+        orderBy: { createdAt: 'desc' },
         skip,
-        take,
-        orderBy: { name: "asc" }
-    });
-}
+        take: limit
+      }),
+      this.prisma.serviceRequest.count({ where })
+    ]);
 
-export async function getServiceTypesCount(tx = prisma) {
-    return await tx.serviceType.count();
-}
+    return { items, total };
+  }
 
-export async function createServiceType(name, description, tx = prisma) {
-    return await tx.serviceType.create({
-        data: { name, description }
-    });
-}
+  async complaints({ status, category, block, page = 1, limit = 10 } = {}) {
+    const where = {};
 
-export async function updateServiceTypeActive(id, isActive, tx = prisma) {
-    return await tx.serviceType.update({
-        where: { id },
-        data: { isActive }
-    });
-}
+    if (status) {
+      const normalized = status === 'Under Review' ? 'UNDER_REVIEW' : status.toUpperCase();
+      where.complaintStatus = normalized;
+    }
 
-export async function getRequestsList(filters, sort, skip, take, tx = prisma) {
-    return await tx.serviceRequest.findMany({
-        where: filters,
-        orderBy: { createdAt: sort },
-        skip,
-        take,
+    if (category) {
+      where.categoryId = Number(category);
+    }
+
+    if (block) {
+      where.student = { block: { blockName: block } };
+    }
+
+    const skip = (page - 1) * limit;
+
+    const [items, total] = await this.prisma.$transaction([
+      this.prisma.complaint.findMany({
+        where,
         include: {
-            serviceType: true,
-            student: {
-                select: {
-                    id: true,
-                    name: true,
-                    roomNumber: true,
-                    block: {
-                        select: { id: true, name: true }
-                    }
-                }
-            },
-            staff: {
-                select: { id: true, name: true, role: true }
-            }
-        }
-    });
-}
-
-export async function getRequestsCount(filters, tx = prisma) {
-    return await tx.serviceRequest.count({ where: filters });
-}
-
-export async function getComplaintsList(filters, sort, skip, take, tx = prisma) {
-    return await tx.complaint.findMany({
-        where: filters,
-        orderBy: { createdAt: sort },
+          student: { include: { block: true } },
+          category: true,
+          resolver: true
+        },
+        orderBy: { createdAt: 'desc' },
         skip,
-        take,
-        include: {
-            student: {
-                select: {
-                    id: true,
-                    name: true,
-                    roomNumber: true,
-                    block: {
-                        select: { id: true, name: true }
-                    }
-                }
-            }
+        take: limit
+      }),
+      this.prisma.complaint.count({ where })
+    ]);
+
+    return { items, total };
+  }
+
+  resolveComplaint(complaintId, status, resolutionNotes, adminId, ipAddress) {
+    return this.prisma.$transaction(async (tx) => {
+      const now = new Date();
+      const normalizedStatus = status === 'Under Review' ? 'UNDER_REVIEW' : status.toUpperCase();
+
+      const updateData = {
+        complaintStatus: normalizedStatus,
+        resolvedBy: adminId,
+        resolutionNotes
+      };
+
+      if (normalizedStatus === 'RESOLVED') {
+        updateData.resolvedAt = now;
+      } else if (normalizedStatus === 'CLOSED') {
+        updateData.closedAt = now;
+      }
+
+      const complaint = await tx.complaint.update({
+        where: { id: complaintId },
+        data: updateData
+      });
+
+      await tx.auditLog.create({
+        data: {
+          administratorId: adminId,
+          action: 'UPDATE_COMPLAINT_STATUS',
+          targetTable: 'complaint',
+          targetRecordId: complaintId,
+          description: `Complaint status updated to ${status}. Notes: ${resolutionNotes || 'None'}`,
+          ipAddress
         }
+      });
+
+      return complaint;
     });
-}
+  }
 
-export async function getComplaintsCount(filters, tx = prisma) {
-    return await tx.complaint.count({ where: filters });
-}
+  async feedback({ page = 1, limit = 20 } = {}) {
+    const skip = (page - 1) * limit;
 
-export async function updateComplaintStatus(id, status, tx = prisma) {
-    return await tx.complaint.update({
-        where: { id },
-        data: { status }
-    });
-}
-
-export async function getFeedbacksList(filters, sort, skip, take, tx = prisma) {
-    return await tx.feedback.findMany({
-        where: filters,
-        orderBy: { createdAt: sort },
+    const [items, total] = await this.prisma.$transaction([
+      this.prisma.feedback.findMany({
+        include: {
+          staff: true,
+          student: true,
+          request: true
+        },
+        orderBy: { submittedAt: 'desc' },
         skip,
-        take,
-        include: {
-            student: {
-                select: { id: true, name: true }
-            },
-            staff: {
-                select: { id: true, name: true, role: true }
-            },
-            request: {
-                select: { id: true, title: true }
-            }
-        }
-    });
-}
+        take: limit
+      }),
+      this.prisma.feedback.count()
+    ]);
 
-export async function getFeedbacksCount(filters, tx = prisma) {
-    return await tx.feedback.count({ where: filters });
+    return { items, total };
+  }
+
+  async analytics() {
+    const totalStudents = await this.prisma.student.count();
+    const totalStaff = await this.prisma.staff.count();
+    const totalRequests = await this.prisma.serviceRequest.count();
+
+    const completedRequests = await this.prisma.serviceRequest.count({
+      where: { requestStatus: 'COMPLETED' }
+    });
+
+    const cancelledRequests = await this.prisma.serviceRequest.count({
+      where: { requestStatus: 'CANCELLED' }
+    });
+
+    const activeRequests = await this.prisma.serviceRequest.count({
+      where: { requestStatus: { in: ['PENDING', 'ASSIGNED', 'IN_PROGRESS'] } }
+    });
+
+    const totalComplaints = await this.prisma.complaint.count();
+
+    const ratingAggregate = await this.prisma.feedback.aggregate({
+      _avg: { rating: true }
+    });
+    const averageStaffRating = ratingAggregate._avg.rating ? parseFloat(ratingAggregate._avg.rating.toFixed(1)) : 0;
+
+    // Calculate Average Resolution Time in hours
+    // (assignedAt to completedAt)
+    const completedList = await this.prisma.serviceRequest.findMany({
+      where: {
+        requestStatus: 'COMPLETED',
+        assignedAt: { not: null },
+        completedAt: { not: null }
+      },
+      select: { assignedAt: true, completedAt: true }
+    });
+
+    let averageResolutionTime = '0.0 Hours';
+    if (completedList.length > 0) {
+      const totalMs = completedList.reduce((sum, req) => {
+        return sum + (req.completedAt.getTime() - req.assignedAt.getTime());
+      }, 0);
+      const avgHours = totalMs / completedList.length / (1000 * 60 * 60);
+      averageResolutionTime = `${avgHours.toFixed(1)} Hours`;
+    }
+
+    return {
+      totalStudents,
+      totalStaff,
+      totalRequests,
+      completedRequests,
+      cancelledRequests,
+      activeRequests,
+      totalComplaints,
+      averageResolutionTime,
+      averageStaffRating
+    };
+  }
+
+  async auditLogs({ page = 1, limit = 50 } = {}) {
+    const skip = (page - 1) * limit;
+
+    const [items, total] = await this.prisma.$transaction([
+      this.prisma.auditLog.findMany({
+        include: {
+          administrator: { select: { fullName: true } }
+        },
+        orderBy: { createdAt: 'desc' },
+        skip,
+        take: limit
+      }),
+      this.prisma.auditLog.count()
+    ]);
+
+    return { items, total };
+  }
 }

@@ -1,22 +1,20 @@
-import dotenv from "dotenv";
-import http from "http";
-import app from "./app.js";
-import { connectDB } from "./config/db.js";
-import { initSocketServer } from "./config/socket.js";
+import { app } from './app.js';
+import { env } from './config/env.js';
+import { prisma } from './config/prisma.js';
+import { logger } from './utils/logger.js';
 
-dotenv.config();
+const server = app.listen(env.PORT, () => {
+  logger.info({ port: env.PORT, environment: env.NODE_ENV }, 'HTTP server started');
+});
 
-const PORT = process.env.PORT || 5000;
-
-async function startServer() {
-    await connectDB();
-
-    const server = http.createServer(app);
-    initSocketServer(server);
-
-    server.listen(PORT, () => {
-        console.log(`🚀 Server running on http://localhost:${PORT}`);
-    });
+async function shutdown(signal) {
+  logger.info({ signal }, 'Graceful shutdown started');
+  server.close(async () => {
+    await prisma.$disconnect();
+    logger.info('HTTP server stopped');
+    process.exit(0);
+  });
 }
 
-startServer();
+process.once('SIGTERM', () => shutdown('SIGTERM'));
+process.once('SIGINT', () => shutdown('SIGINT'));
