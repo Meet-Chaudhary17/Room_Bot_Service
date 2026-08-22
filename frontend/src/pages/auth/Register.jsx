@@ -65,7 +65,6 @@ export default function Register() {
           password,
           confirm_password: confirmPassword,
           room_number: roomNumber,
-          gender,
           block_id: Number(blockId)
         };
         await registerStudent(payload);
