@@ -11,7 +11,10 @@ const createTransporter = () => {
   if (user.includes('@gmail.com') && !env.SMTP_HOST) {
     return nodemailer.createTransport({
       service: 'gmail',
-      auth: { user, pass }
+      auth: { user, pass },
+      connectionTimeout: 5000,
+      greetingTimeout: 5000,
+      socketTimeout: 10000
     });
   }
 
@@ -19,7 +22,10 @@ const createTransporter = () => {
     host,
     port,
     secure,
-    auth: { user, pass }
+    auth: { user, pass },
+    connectionTimeout: 5000,
+    greetingTimeout: 5000,
+    socketTimeout: 10000
   });
 };
 

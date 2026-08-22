@@ -2,7 +2,7 @@ import { authService } from '../services/auth.service.js';
 import { emailService } from '../services/email.service.js';
 import { asyncHandler } from '../utils/async-handler.js';
 import { AppError } from '../utils/app-error.js';
-const created = (method) => asyncHandler(async (req, res) => { const data = await method(req.body); await emailService.sendOtp({ to: data.email, purpose: 'REGISTRATION' }); res.status(201).json({ success: true, message: 'OTP sent successfully.', data }); });
+const created = (method) => asyncHandler(async (req, res) => { const data = await method(req.body); emailService.sendOtp({ to: data.email, purpose: 'REGISTRATION' }).catch(err => console.error('Failed to send registration OTP:', err)); res.status(201).json({ success: true, message: 'OTP sent successfully.', data }); });
 export const authController = {
   registerStudent: created(authService.registerStudent),
   registerStaff: created(authService.registerStaff),
