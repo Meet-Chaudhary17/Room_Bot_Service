@@ -11,21 +11,42 @@ export const adminService = {
 
   async listStudents(filters) {
     const { items, total } = await repository.students(filters);
+    const limit = filters.limit || 20;
+    const page = filters.page || 1;
+    const totalPages = Math.ceil(total / limit);
 
     const formatted = items.map(item => ({
+      id: item.id,
       studentId: item.id,
       name: item.fullName,
+      fullName: item.fullName,
+      registrationNo: item.registrationNumber,
       email: item.email,
-      block: item.block.blockName,
+      phone: item.phoneNumber,
       roomNumber: item.roomNumber,
+      block: { id: item.block.id, name: item.block.blockName },
+      isBlocked: item.isBlocked,
       status: item.isBlocked ? 'Blocked' : 'Active'
     }));
 
-    return formatted;
+    return {
+      students: formatted,
+      pagination: {
+        total,
+        page,
+        limit,
+        totalPages,
+        hasNextPage: page < totalPages,
+        hasPreviousPage: page > 1
+      }
+    };
   },
 
   async listStaff(filters) {
     const { items, total } = await repository.staff(filters);
+    const limit = filters.limit || 20;
+    const page = filters.page || 1;
+    const totalPages = Math.ceil(total / limit);
 
     const formatted = items.map(item => {
       const activeRequests = item.assignedRequests.filter(req => ['ASSIGNED', 'IN_PROGRESS'].includes(req.requestStatus)).length;
@@ -33,18 +54,34 @@ export const adminService = {
       const averageRating = item.feedback.length > 0 ? parseFloat((item.feedback.reduce((sum, fb) => sum + fb.rating, 0) / item.feedback.length).toFixed(1)) : 0;
 
       return {
+        id: item.id,
         staffId: item.id,
         name: item.fullName,
+        fullName: item.fullName,
+        email: item.email,
+        phone: item.phoneNumber,
+        serviceRole: item.serviceRole,
         role: item.serviceRole === 'CLEANING' ? 'Cleaning' : item.serviceRole === 'ELECTRICAL_MAINTENANCE' ? 'Electrical Maintenance' : item.serviceRole === 'PLUMBING' ? 'Plumbing' : item.serviceRole === 'AC_MAINTENANCE' ? 'AC Maintenance' : item.serviceRole === 'FURNITURE_REPAIR' ? 'Furniture Repair' : item.serviceRole,
-        block: item.block.blockName,
+        block: { id: item.block.id, name: item.block.blockName },
         activeRequests,
         completedRequests,
         averageRating,
+        isActive: item.isActive,
         status: item.isActive ? 'Active' : 'Blocked'
       };
     });
 
-    return formatted;
+    return {
+      staff: formatted,
+      pagination: {
+        total,
+        page,
+        limit,
+        totalPages,
+        hasNextPage: page < totalPages,
+        hasPreviousPage: page > 1
+      }
+    };
   },
 
   async updateStudentStatus(studentId, status, adminId, ipAddress) {

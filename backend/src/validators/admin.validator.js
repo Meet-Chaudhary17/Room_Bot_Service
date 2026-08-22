@@ -1,11 +1,17 @@
 import { z } from 'zod';
 
 export const studentStatusUpdate = z.object({
-  status: z.enum(['Active', 'Blocked'])
+  status: z.enum(['Active', 'Blocked']).optional(),
+  isBlocked: z.boolean().optional()
+}).refine(data => data.status !== undefined || data.isBlocked !== undefined, {
+  message: "Either 'status' or 'isBlocked' must be provided."
 });
 
 export const staffStatusUpdate = z.object({
-  status: z.enum(['Active', 'Blocked'])
+  status: z.enum(['Active', 'Blocked']).optional(),
+  isActive: z.boolean().optional()
+}).refine(data => data.status !== undefined || data.isActive !== undefined, {
+  message: "Either 'status' or 'isActive' must be provided."
 });
 
 export const complaintResolve = z.object({

@@ -32,7 +32,11 @@ export default function VerifyOTP() {
     setLoading(true);
     try {
       const response = await verifyOtp(email, otp);
-      toast.success(response.message || 'Email verified successfully! You can now log in.');
+      if (response.userType === 'STAFF' || response.data?.userType === 'STAFF') {
+        toast.success('Registration successful! Please wait for admin to approve.', { duration: 6000 });
+      } else {
+        toast.success(response.message || 'Email verified successfully! You can now log in.');
+      }
       navigate('/login');
     } catch (err) {
       toast.error(err.message || 'OTP verification failed. Please try again.');

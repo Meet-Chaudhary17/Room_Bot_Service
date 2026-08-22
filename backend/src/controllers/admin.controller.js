@@ -34,15 +34,23 @@ export const adminController = {
 
   updateStudentStatus: asyncHandler(async (req, res) => {
     const studentId = Number(req.params.studentId);
-    const { status } = req.body;
-    await adminService.updateStudentStatus(studentId, status, getAdminId(req), getIpAddress(req));
+    let isBlocked = req.body.isBlocked;
+    if (isBlocked === undefined && req.body.status !== undefined) {
+      isBlocked = req.body.status === 'Blocked';
+    }
+    const statusStr = isBlocked ? 'Blocked' : 'Active';
+    await adminService.updateStudentStatus(studentId, statusStr, getAdminId(req), getIpAddress(req));
     res.json({ success: true, message: 'Student status updated successfully.' });
   }),
 
   updateStaffStatus: asyncHandler(async (req, res) => {
     const staffId = Number(req.params.staffId);
-    const { status } = req.body;
-    await adminService.updateStaffStatus(staffId, status, getAdminId(req), getIpAddress(req));
+    let isActive = req.body.isActive;
+    if (isActive === undefined && req.body.status !== undefined) {
+      isActive = req.body.status === 'Active';
+    }
+    const statusStr = isActive ? 'Active' : 'Blocked';
+    await adminService.updateStaffStatus(staffId, statusStr, getAdminId(req), getIpAddress(req));
     res.json({ success: true, message: 'Staff status updated successfully.' });
   }),
 

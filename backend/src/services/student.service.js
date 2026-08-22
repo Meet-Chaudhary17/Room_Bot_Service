@@ -5,7 +5,30 @@ const repository = new StudentRepository(prisma);
 export const studentService = {
   async profile(id) { const user = await repository.profile(id); if (!user) throw new AppError(404, 'STUDENT_NOT_FOUND', 'Student not found.'); return user; },
   updateProfile: (id, data) => repository.updateProfile(id, { ...(data.full_name !== undefined && { fullName: data.full_name }), ...(data.phone_number !== undefined && { phoneNumber: data.phone_number }), ...(data.room_number !== undefined && { roomNumber: data.room_number }) }),
-  async createRequest(studentId, data) { const profile = await repository.profile(studentId); if (!profile) throw new AppError(404, 'STUDENT_NOT_FOUND', 'Student not found.'); return repository.createRequest({ studentId, title: data.title, description: data.description, categoryId: data.category_id, roomNumber: data.room_number }); },
+  async createRequest(studentId, data) {
+    const profile = await repository.profile(studentId);
+    if (!profile) throw new AppError(404, 'STUDENT_NOT_FOUND', 'Student not found.');
+
+    const category = await prisma.serviceCategory.findUnique({
+      where: { id: data.category_id },
+      select: { serviceRole: true }
+    });
+    if (!category) throw new AppError(404, 'CATEGORY_NOT_FOUND', 'Service category not found.');
+
+    const staffCount = await prisma.staff.count({
+      where: {
+        blockId: profile.blockId,
+        serviceRole: category.serviceRole,
+        isActive: true
+      }
+    });
+
+    if (staffCount === 0) {
+      throw new AppError(400, 'NO_STAFF_AVAILABLE', 'Request cannot be sent because no staff is available in your block for this service.');
+    }
+
+    return repository.createRequest({ studentId, title: data.title, description: data.description, categoryId: data.category_id, roomNumber: data.room_number });
+  },
   listRequests: (id) => repository.requests(id),
   async cancelRequest(id, studentId) { const result = await repository.cancelRequest(id, studentId); if (!result.count) throw new AppError(409, 'REQUEST_NOT_CANCELLABLE', 'Only pending or assigned requests can be cancelled.'); },
   createComplaint: (studentId, data) => repository.createComplaint({ studentId, title: data.title, description: data.description, categoryId: data.category_id, priority: data.priority }),

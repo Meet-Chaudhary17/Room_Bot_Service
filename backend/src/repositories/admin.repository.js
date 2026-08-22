@@ -11,6 +11,7 @@ export class AdminRepository extends BaseRepository {
   async dashboardStats() {
     const totalStudents = await this.prisma.student.count();
     const totalStaff = await this.prisma.staff.count();
+    const totalRequests = await this.prisma.serviceRequest.count();
 
     const activeRequests = await this.prisma.serviceRequest.count({
       where: { requestStatus: { in: ['PENDING', 'ASSIGNED', 'IN_PROGRESS'] } }
@@ -29,13 +30,34 @@ export class AdminRepository extends BaseRepository {
     });
     const averageRating = ratingAggregate._avg.rating ? parseFloat(ratingAggregate._avg.rating.toFixed(1)) : 0;
 
+    const statusCounts = await this.prisma.serviceRequest.groupBy({
+      by: ['requestStatus'],
+      _count: { id: true }
+    });
+    const requestStatusCounts = statusCounts.reduce((acc, curr) => {
+      acc[curr.requestStatus] = curr._count.id;
+      return acc;
+    }, {});
+
+    const categoryCounts = await this.prisma.serviceRequest.groupBy({
+      by: ['serviceRole'],
+      _count: { id: true }
+    });
+    const requestsByServiceType = categoryCounts.map(cat => ({
+      name: cat.serviceRole === 'CLEANING' ? 'Cleaning' : cat.serviceRole === 'ELECTRICAL_MAINTENANCE' ? 'Electrical Maintenance' : cat.serviceRole === 'PLUMBING' ? 'Plumbing' : cat.serviceRole === 'AC_MAINTENANCE' ? 'AC Maintenance' : cat.serviceRole === 'FURNITURE_REPAIR' ? 'Furniture Repair' : cat.serviceRole,
+      count: cat._count.id
+    }));
+
     return {
       totalStudents,
       totalStaff,
+      totalRequests,
       activeRequests,
       completedRequests,
       activeComplaints,
-      averageRating
+      averageRating,
+      requestStatusCounts,
+      requestsByServiceType
     };
   }
 

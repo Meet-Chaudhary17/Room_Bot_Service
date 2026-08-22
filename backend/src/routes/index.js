@@ -53,6 +53,7 @@ apiRouter.get('/admin/dashboard', ...adminOnly, adminController.dashboard);
 apiRouter.get('/admin/students', ...adminOnly, adminController.students);
 apiRouter.get('/admin/staff', ...adminOnly, adminController.staff);
 apiRouter.patch('/admin/students/:studentId/status', ...adminOnly, validate(adminStudentStatus), adminController.updateStudentStatus);
+apiRouter.patch('/admin/students/:studentId/block', ...adminOnly, validate(adminStudentStatus), adminController.updateStudentStatus);
 apiRouter.patch('/admin/staff/:staffId/status', ...adminOnly, validate(adminStaffStatus), adminController.updateStaffStatus);
 apiRouter.get('/admin/service-requests', ...adminOnly, adminController.requests);
 apiRouter.get('/admin/complaints', ...adminOnly, adminController.complaints);
