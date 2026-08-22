@@ -12,13 +12,13 @@ const categories = [
 ];
 
 async function main() {
-  const passwordHash = await bcrypt.hash('lalila2028', 12);
+  const passwordHash = await bcrypt.hash('u6002_teeM', 12);
 
   const administrator = await prisma.administrator.upsert({
-    where: { username: 'Meetu_17' },
+    where: { username: 'Meetu_2006' },
     update: {},
     create: {
-      username: 'Meetu_17',
+      username: 'Meetu_2006',
       fullName: 'Room-Bot Administrator',
       email: 'admin@roombot.local',
     },
@@ -43,36 +43,16 @@ async function main() {
     },
   });
 
-  const passwordHashBot = await bcrypt.hash('Service_bot', 12);
-
-  const administratorBot = await prisma.administrator.upsert({
-    where: { username: 'Meetu_bot' },
-    update: {},
-    create: {
-      username: 'Meetu_bot',
-      fullName: 'Room-Bot Service Admin',
-      email: 'service_admin@roombot.local',
-    },
-  });
-
-  await prisma.accountCredential.upsert({
-    where: { email: 'service_admin@roombot.local' },
-    update: {
-      userType: UserType.ADMINISTRATOR,
-      userId: administratorBot.id,
-      passwordHash: passwordHashBot,
-      emailVerified: true,
-      lastPasswordChange: new Date(),
-    },
-    create: {
-      userType: UserType.ADMINISTRATOR,
-      userId: administratorBot.id,
-      email: 'service_admin@roombot.local',
-      passwordHash: passwordHashBot,
-      emailVerified: true,
-      lastPasswordChange: new Date(),
-    },
-  });
+  const blocks = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R', 'S', 'T'];
+  for (let i = 0; i < blocks.length; i++) {
+    const id = i + 1;
+    const blockName = `${blocks[i]} Block`;
+    await prisma.hostelBlock.upsert({
+      where: { id },
+      update: { blockName },
+      create: { id, blockName },
+    });
+  }
 
   for (const [categoryName, serviceRole] of categories) {
     await prisma.serviceCategory.upsert({

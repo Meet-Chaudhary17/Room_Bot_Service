@@ -257,9 +257,14 @@ export const Register = () => {
               onChange={(e) => setBlockId(e.target.value)}
               className="w-full px-3 py-2.5 bg-slate-950 border border-slate-800 text-white rounded-xl focus:outline-none focus:border-blue-500/80 transition-colors text-sm"
             >
-              <option value="1">Block A</option>
-              <option value="2">Block B</option>
-              <option value="3">Block C</option>
+              {Array.from({ length: 20 }, (_, i) => {
+                const char = String.fromCharCode(65 + i);
+                return (
+                  <option key={char} value={String(i + 1)}>
+                    Block {char}
+                  </option>
+                );
+              })}
             </select>
           </div>
 
