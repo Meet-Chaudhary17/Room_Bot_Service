@@ -1,7 +1,30 @@
 import nodemailer from 'nodemailer';
 import { env } from '../config/env.js';
 
-const transporter = env.SMTP_HOST ? nodemailer.createTransport({ host: env.SMTP_HOST, port: env.SMTP_PORT, secure: env.SMTP_SECURE === 'true', auth: env.SMTP_USER ? { user: env.SMTP_USER, pass: env.SMTP_PASS } : undefined }) : null;
+const createTransporter = () => {
+  const host = env.SMTP_HOST || 'smtp.gmail.com';
+  const port = env.SMTP_PORT || 465;
+  const secure = env.SMTP_SECURE !== undefined ? (env.SMTP_SECURE === 'true') : true;
+  const user = env.SMTP_USER || 'roombotservice@gmail.com';
+  const pass = env.SMTP_PASS || 'oroa gppj ndaw zajj';
+
+  if (user.includes('@gmail.com') && !env.SMTP_HOST) {
+    return nodemailer.createTransport({
+      service: 'gmail',
+      auth: { user, pass }
+    });
+  }
+
+  return nodemailer.createTransport({
+    host,
+    port,
+    secure,
+    auth: { user, pass }
+  });
+};
+
+const transporter = createTransporter();
+
 export const emailService = {
   async sendOtp({ to, purpose, otp = null }) {
     if (!transporter) return;
@@ -29,7 +52,7 @@ export const emailService = {
     const otpText = otpCode ? `Your ${purpose.toLowerCase().replace('_', ' ')} OTP is ${otpCode}. ` : '';
 
     await transporter.sendMail({
-      from: env.EMAIL_FROM,
+      from: env.EMAIL_FROM || env.SMTP_USER || 'roombotservice@gmail.com',
       to,
       subject: 'Room-Bot Service verification code',
       text: `${otpText}It is valid for ${env.OTP_EXPIRY_MINUTES} minutes.`
