@@ -14,7 +14,7 @@ export function errorHandler(error, request, response, _next) {
 
   response.status(status).json({
     success: false,
-    error: { code, message, devMessage: error.message, stack: error.stack },
+    error: { code, message },
     requestId: request.id,
   });
 }
