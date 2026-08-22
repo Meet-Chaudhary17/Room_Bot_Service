@@ -14,7 +14,8 @@ export const app = express();
 
 app.disable('x-powered-by');
 app.use(helmet());
-app.use(cors({ origin: env.CLIENT_URL, methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE'], credentials: false }));
+const allowedOrigin = env.CLIENT_URL.endsWith('/') ? env.CLIENT_URL.slice(0, -1) : env.CLIENT_URL;
+app.use(cors({ origin: allowedOrigin, methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE'], credentials: false }));
 app.use(express.json({ limit: '100kb' }));
 app.use(requestId);
 app.use(morgan('combined', { stream: { write: (message) => logger.info({ http: message.trim() }, 'HTTP request') } }));
