@@ -21,12 +21,22 @@ export const staffService = {
       requestId: req.id,
       studentRoom: req.roomNumber,
       serviceCategory: req.category.categoryName,
-      status: req.requestStatus === 'ASSIGNED' ? 'Assigned' : req.requestStatus === 'IN_PROGRESS' ? 'In Progress' : req.requestStatus,
+      status: req.requestStatus,
       assignedDate: req.assignedAt ? req.assignedAt.toISOString().split('T')[0] : null
     }));
 
     return {
-      ...stats,
+      // Raw statistics keys for integration tests
+      assignedRequests: stats.assignedRequests,
+      pendingRequests: stats.pendingRequests,
+      completedToday: stats.completedToday,
+      averageRating: stats.averageRating,
+
+      // Mapped keys for React frontend metrics
+      totalAssigned: stats.pendingRequests,
+      inProgress: stats.assignedRequests - stats.pendingRequests,
+      completed: stats.completedToday,
+      ratingAverage: stats.averageRating,
       recentRequests: formattedRecent
     };
   },
@@ -38,13 +48,27 @@ export const staffService = {
     const totalPages = Math.ceil(total / limit);
 
     const formatted = items.map(req => ({
+      id: req.id,
       requestId: req.id,
-      studentName: req.student.fullName,
-      serviceType: req.category.categoryName,
-      status: req.requestStatus === 'ASSIGNED' ? 'Assigned' : req.requestStatus === 'IN_PROGRESS' ? 'In Progress' : req.requestStatus,
-      block: cleanBlockName(req.student.block.blockName),
+      title: req.title,
+      description: req.description,
+      status: req.requestStatus,
+      priority: req.priority,
+      serviceType: {
+        id: req.category.id,
+        name: req.category.categoryName
+      },
       roomNumber: req.roomNumber,
-      priority: req.priority
+      student: {
+        id: req.student.id,
+        name: req.student.fullName,
+        email: req.student.email,
+        roomNumber: req.student.roomNumber,
+        block: {
+          id: req.student.block.id,
+          name: cleanBlockName(req.student.block.blockName)
+        }
+      }
     }));
 
     return {
@@ -64,13 +88,26 @@ export const staffService = {
     const { items, total } = await repository.assignedRequests(staffId, filters);
 
     const formatted = items.map(req => ({
+      id: req.id,
       requestId: req.id,
+      title: req.title,
+      description: req.description,
+      status: req.requestStatus,
+      priority: req.priority,
       studentName: req.student.fullName,
       serviceType: req.category.categoryName,
-      status: req.requestStatus === 'ASSIGNED' ? 'Assigned' : req.requestStatus === 'IN_PROGRESS' ? 'In Progress' : req.requestStatus,
       block: cleanBlockName(req.student.block.blockName),
       roomNumber: req.roomNumber,
-      priority: req.priority
+      student: {
+        id: req.student.id,
+        name: req.student.fullName,
+        email: req.student.email,
+        roomNumber: req.student.roomNumber,
+        block: {
+          id: req.student.block.id,
+          name: cleanBlockName(req.student.block.blockName)
+        }
+      }
     }));
 
     return formatted;

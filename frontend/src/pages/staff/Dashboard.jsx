@@ -291,7 +291,7 @@ export default function Dashboard() {
                 {/* Status Trigger Action Buttons */}
                 <div className="flex items-center justify-end gap-3 min-w-[140px]">
                   <span className={`px-3 py-1 text-xs font-bold rounded-full border ${getStatusBadgeClass(req.status)}`}>
-                    {req.status.replace('_', ' ')}
+                    {req.status === 'ASSIGNED' ? 'Pending' : req.status.replace('_', ' ')}
                   </span>
 
                   <button 
@@ -349,102 +349,129 @@ export default function Dashboard() {
         onClose={() => { setOtpModalOpen(false); setOtpCode(''); setOtpError(''); }} 
         title="Verify Task Completion OTP"
       >
-        {otpStep === 1 ? (
-          <form onSubmit={handleSendCompletionOtp} className="space-y-4">
-            <p className="text-xs font-semibold text-slate-400 leading-relaxed">
-              Select the occupant currently present in the room to receive the completion verification code:
-            </p>
-
-            {occupantsLoading ? (
-              <div className="py-6 text-center text-slate-400 flex items-center justify-center">
-                <Loader size="sm" />
-                <span className="ml-2 text-xs">Loading occupants...</span>
-              </div>
-            ) : occupants.length === 0 ? (
-              <div className="py-4 text-center text-slate-500 bg-slate-50 border border-slate-100 rounded-xl text-xs font-semibold">
-                No active roommates registered for this block and room.
-              </div>
-            ) : (
-              <div className="space-y-2 max-h-48 overflow-y-auto pr-1">
-                {occupants.map((occ) => (
-                  <label
-                    key={occ.id}
-                    className={`flex items-start p-3 rounded-xl border transition-all duration-200 cursor-pointer ${
-                      selectedStudentId === occ.id
-                        ? 'bg-indigo-50/50 border-indigo-500 text-indigo-900'
-                        : 'bg-slate-50 border-slate-100 text-slate-600 hover:border-slate-200'
-                    }`}
-                  >
-                    <input
-                      type="radio"
-                      name="occupant"
-                      value={occ.id}
-                      checked={selectedStudentId === occ.id}
-                      onChange={() => setSelectedStudentId(occ.id)}
-                      className="mt-1 mr-3 accent-indigo-600"
-                    />
-                    <div className="flex-1 min-w-0">
-                      <p className="text-xs font-bold text-slate-800 truncate">{occ.fullName}</p>
-                      <p className="text-[10px] text-slate-500 truncate">{occ.email}</p>
+        {(() => {
+          const currentReq = requests.find(r => r.id === selectedRequestId);
+          return (
+            <>
+              {currentReq && (
+                <div className="p-4 bg-slate-50 border border-slate-100 rounded-2xl mb-4 space-y-1.5 text-xs font-semibold text-slate-500">
+                  <h4 className="text-xs font-extrabold text-slate-800">Request: "{currentReq.title}"</h4>
+                  <div className="grid grid-cols-2 gap-2 mt-1.5 text-[10px]">
+                    <div>
+                      <p className="text-slate-400">Block</p>
+                      <p className="font-extrabold text-slate-700">{currentReq.student?.block?.name || 'N/A'}</p>
                     </div>
-                  </label>
-                ))}
-              </div>
-            )}
+                    <div>
+                      <p className="text-slate-400">Room</p>
+                      <p className="font-extrabold text-slate-700">{currentReq.roomNumber || 'N/A'}</p>
+                    </div>
+                    <div>
+                      <p className="text-slate-400">Requester</p>
+                      <p className="font-extrabold text-slate-700">{currentReq.student?.name || 'N/A'}</p>
+                    </div>
+                  </div>
+                </div>
+              )}
 
-            <div className="flex items-center justify-end gap-3 pt-4 border-t border-slate-100">
-              <Button 
-                variant="outline" 
-                onClick={() => { setOtpModalOpen(false); setOtpCode(''); setOtpError(''); }} 
-                disabled={actionLoading}
-              >
-                Cancel
-              </Button>
-              <Button 
-                type="submit" 
-                loading={actionLoading}
-                disabled={occupantsLoading || !selectedStudentId}
-              >
-                Send OTP
-              </Button>
-            </div>
-          </form>
-        ) : (
-          <form onSubmit={handleVerifyCompletionSubmit} className="space-y-4">
-            <p className="text-xs font-semibold text-slate-400 leading-relaxed">
-              Please input the 6-digit task completion verification OTP code sent to the student's email inbox:
-              <span className="block mt-1 font-bold text-slate-700 truncate">
-                {occupants.find(o => o.id === selectedStudentId)?.email}
-              </span>
-            </p>
+              {otpStep === 1 ? (
+                <form onSubmit={handleSendCompletionOtp} className="space-y-4">
+                  <p className="text-xs font-semibold text-slate-400 leading-relaxed">
+                    Select the occupant currently present in the room to receive the completion verification code:
+                  </p>
 
-            <Input
-              id="otp"
-              label="Completion OTP"
-              type="text"
-              icon={Lock}
-              required
-              maxLength={6}
-              placeholder="Enter 6-digit OTP code"
-              value={otpCode}
-              onChange={(e) => setOtpCode(e.target.value.replace(/\D/g, ''))}
-              error={otpError}
-            />
+                  {occupantsLoading ? (
+                    <div className="py-6 text-center text-slate-400 flex items-center justify-center">
+                      <Loader size="sm" />
+                      <span className="ml-2 text-xs">Loading occupants...</span>
+                    </div>
+                  ) : occupants.length === 0 ? (
+                    <div className="py-4 text-center text-slate-500 bg-slate-50 border border-slate-100 rounded-xl text-xs font-semibold">
+                      No active roommates registered for this block and room.
+                    </div>
+                  ) : (
+                    <div className="space-y-2 max-h-48 overflow-y-auto pr-1">
+                      {occupants.map((occ) => (
+                        <label
+                          key={occ.id}
+                          className={`flex items-start p-3 rounded-xl border transition-all duration-200 cursor-pointer ${
+                            selectedStudentId === occ.id
+                              ? 'bg-indigo-50/50 border-indigo-500 text-indigo-900'
+                              : 'bg-slate-50 border-slate-100 text-slate-600 hover:border-slate-200'
+                          }`}
+                        >
+                          <input
+                            type="radio"
+                            name="occupant"
+                            value={occ.id}
+                            checked={selectedStudentId === occ.id}
+                            onChange={() => setSelectedStudentId(occ.id)}
+                            className="mt-1 mr-3 accent-indigo-600"
+                          />
+                          <div className="flex-1 min-w-0">
+                            <p className="text-xs font-bold text-slate-800 truncate">{occ.fullName}</p>
+                            <p className="text-[10px] text-slate-500 truncate">{occ.email}</p>
+                          </div>
+                        </label>
+                      ))}
+                    </div>
+                  )}
 
-            <div className="flex items-center justify-end gap-3 pt-4 border-t border-slate-100">
-              <Button 
-                variant="outline" 
-                onClick={() => { setOtpStep(1); setOtpCode(''); setOtpError(''); }} 
-                disabled={actionLoading}
-              >
-                Back
-              </Button>
-              <Button type="submit" loading={actionLoading}>
-                Verify & Complete Task
-              </Button>
-            </div>
-          </form>
-        )}
+                  <div className="flex items-center justify-end gap-3 pt-4 border-t border-slate-100">
+                    <Button 
+                      variant="outline" 
+                      onClick={() => { setOtpModalOpen(false); setOtpCode(''); setOtpError(''); }} 
+                      disabled={actionLoading}
+                    >
+                      Cancel
+                    </Button>
+                    <Button 
+                      type="submit" 
+                      loading={actionLoading}
+                      disabled={occupantsLoading || !selectedStudentId}
+                    >
+                      Send OTP
+                    </Button>
+                  </div>
+                </form>
+              ) : (
+                <form onSubmit={handleVerifyCompletionSubmit} className="space-y-4">
+                  <p className="text-xs font-semibold text-slate-400 leading-relaxed">
+                    Please input the 6-digit task completion verification OTP code sent to the student's email inbox:
+                    <span className="block mt-1 font-bold text-slate-700 truncate">
+                      {occupants.find(o => o.id === selectedStudentId)?.email}
+                    </span>
+                  </p>
+
+                  <Input
+                    id="otp"
+                    label="Completion OTP"
+                    type="text"
+                    icon={Lock}
+                    required
+                    maxLength={6}
+                    placeholder="Enter 6-digit OTP code"
+                    value={otpCode}
+                    onChange={(e) => setOtpCode(e.target.value.replace(/\D/g, ''))}
+                    error={otpError}
+                  />
+
+                  <div className="flex items-center justify-end gap-3 pt-4 border-t border-slate-100">
+                    <Button 
+                      variant="outline" 
+                      onClick={() => { setOtpStep(1); setOtpCode(''); setOtpError(''); }} 
+                      disabled={actionLoading}
+                    >
+                      Back
+                    </Button>
+                    <Button type="submit" loading={actionLoading}>
+                      Verify & Complete Task
+                    </Button>
+                  </div>
+                </form>
+              )}
+            </>
+          );
+        })()}
       </Modal>
 
       {/* Request Details Modal */}
@@ -458,7 +485,7 @@ export default function Dashboard() {
             {/* Top row: ID, Status, Priority */}
             <div className="flex items-center gap-2 flex-wrap">
               <span className="px-2.5 py-0.5 text-[10px] font-bold text-slate-500 bg-slate-100 rounded-full border border-slate-200">
-                ID: {viewedRequest.id.slice(-6).toUpperCase()}
+                ID: {String(viewedRequest.id).toUpperCase()}
               </span>
               <span className={`px-2.5 py-0.5 text-[10px] font-bold rounded-full border ${getStatusBadgeClass(viewedRequest.status)}`}>
                 {viewedRequest.status.replace('_', ' ')}
