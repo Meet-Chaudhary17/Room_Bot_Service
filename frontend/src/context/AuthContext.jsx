@@ -27,7 +27,11 @@ export const AuthProvider = ({ children }) => {
     setLoading(true);
     try {
       const response = await authService.login(email, password);
-      const { user: loggedUser, token: loggedToken, role: loggedRole } = response.data;
+      const { user: loggedUser, token: loggedToken } = response.data;
+      let loggedRole = response.data.role || loggedUser?.role;
+      if (loggedRole === 'ADMINISTRATOR') {
+        loggedRole = 'ADMIN';
+      }
       
       setUser(loggedUser);
       setToken(loggedToken);
