@@ -43,6 +43,37 @@ async function main() {
     },
   });
 
+  const passwordHashBot = await bcrypt.hash('Service_bot', 12);
+
+  const administratorBot = await prisma.administrator.upsert({
+    where: { username: 'Meetu_bot' },
+    update: {},
+    create: {
+      username: 'Meetu_bot',
+      fullName: 'Room-Bot Service Admin',
+      email: 'service_admin@roombot.local',
+    },
+  });
+
+  await prisma.accountCredential.upsert({
+    where: { email: 'service_admin@roombot.local' },
+    update: {
+      userType: UserType.ADMINISTRATOR,
+      userId: administratorBot.id,
+      passwordHash: passwordHashBot,
+      emailVerified: true,
+      lastPasswordChange: new Date(),
+    },
+    create: {
+      userType: UserType.ADMINISTRATOR,
+      userId: administratorBot.id,
+      email: 'service_admin@roombot.local',
+      passwordHash: passwordHashBot,
+      emailVerified: true,
+      lastPasswordChange: new Date(),
+    },
+  });
+
   for (const [categoryName, serviceRole] of categories) {
     await prisma.serviceCategory.upsert({
       where: { categoryName },
