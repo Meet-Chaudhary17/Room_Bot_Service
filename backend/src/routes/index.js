@@ -20,6 +20,7 @@ apiRouter.post('/auth/register/staff', validate(staffRegistration), authControll
 apiRouter.post('/auth/login/student', validate(credentials), authController.loginStudent);
 apiRouter.post('/auth/login/staff', validate(credentials), authController.loginStaff);
 apiRouter.post('/auth/login/admin', validate(adminCredentials), authController.loginAdmin);
+apiRouter.post('/auth/login', authController.loginUnified);
 apiRouter.post('/auth/send-otp', validate(sendOtp), authController.sendOtp);
 apiRouter.post('/auth/verify-otp', validate(emailOtp), authController.verifyOtp);
 apiRouter.post('/auth/logout', authenticate, authController.logout);
