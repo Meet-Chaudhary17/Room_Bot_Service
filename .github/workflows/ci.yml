@@ -53,7 +53,9 @@ jobs:
           npm test
         env:
           DATABASE_URL: postgresql://postgres:postgres@localhost:5432/room_bot_service?schema=public
-          JWT_SECRET: dummyjwtsecretkeyvalue12345
+          JWT_SECRET: dummyjwtsecretkeyvalue123456789012
+          OTP_EXPIRY_MINUTES: 10
+          CLIENT_URL: http://localhost:5173
           SMTP_HOST: smtp.mailtrap.io
           SMTP_PORT: 2525
           SMTP_USER: dummyuser

@@ -5,7 +5,7 @@ import jwt from 'jsonwebtoken';
 
 process.env.NODE_ENV = 'test';
 process.env.PORT = '5002';
-process.env.DATABASE_URL = 'postgresql://roombot:change_this_database_password@127.0.0.1:5432/roombot?schema=test';
+process.env.DATABASE_URL = process.env.DATABASE_URL || 'postgresql://roombot:change_this_database_password@127.0.0.1:5432/roombot?schema=test';
 process.env.JWT_SECRET = 'test-only-secret-that-is-at-least-thirty-two-characters';
 process.env.JWT_EXPIRES_IN = '24h';
 process.env.OTP_EXPIRY_MINUTES = '10';
