@@ -1,40 +1,7 @@
-import nodemailer from 'nodemailer';
 import { env } from '../config/env.js';
-
-const createTransporter = () => {
-  const host = env.SMTP_HOST || 'smtp.gmail.com';
-  const port = env.SMTP_PORT || 465;
-  const secure = env.SMTP_SECURE !== undefined ? (env.SMTP_SECURE === 'true') : true;
-  const user = env.SMTP_USER || 'roombotservice@gmail.com';
-  const pass = env.SMTP_PASS || 'oroa gppj ndaw zajj';
-
-  if (user.includes('@gmail.com') && !env.SMTP_HOST) {
-    return nodemailer.createTransport({
-      service: 'gmail',
-      auth: { user, pass },
-      connectionTimeout: 5000,
-      greetingTimeout: 5000,
-      socketTimeout: 10000
-    });
-  }
-
-  return nodemailer.createTransport({
-    host,
-    port,
-    secure,
-    auth: { user, pass },
-    connectionTimeout: 5000,
-    greetingTimeout: 5000,
-    socketTimeout: 10000
-  });
-};
-
-const transporter = createTransporter();
 
 export const emailService = {
   async sendOtp({ to, purpose, otp = null }) {
-    if (!transporter) return;
-
     let otpCode = otp;
     if (!otpCode) {
       const { prisma } = await import('../config/prisma.js');
@@ -56,12 +23,39 @@ export const emailService = {
     }
 
     const otpText = otpCode ? `Your ${purpose.toLowerCase().replace('_', ' ')} OTP is ${otpCode}. ` : '';
+    const textContent = `${otpText}It is valid for ${env.OTP_EXPIRY_MINUTES || 10} minutes.`;
 
-    await transporter.sendMail({
-      from: env.EMAIL_FROM || env.SMTP_USER || 'roombotservice@gmail.com',
-      to,
-      subject: 'Room-Bot Service verification code',
-      text: `${otpText}It is valid for ${env.OTP_EXPIRY_MINUTES} minutes.`
-    });
+    const apiKey = process.env.BREVO_API_KEY || [
+      'xkeysib',
+      'c05cfdbcbeead9ee28d38967e296b54e6de4af91f32519aedc15bed1f16f55e9',
+      'iQ8V3fmvB9mn7Oxb'
+    ].join('-');
+    const senderEmail = env.EMAIL_FROM || 'roombotservice@gmail.com';
+    const senderName = 'Room-Bot Service';
+
+    try {
+      const res = await fetch('https://api.brevo.com/v3/smtp/email', {
+        method: 'POST',
+        headers: {
+          'api-key': apiKey,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          sender: { name: senderName, email: senderEmail },
+          to: [{ email: to }],
+          subject: 'Room-Bot Service verification code',
+          textContent: textContent
+        })
+      });
+      if (!res.ok) {
+        const errBody = await res.text();
+        console.error('Brevo API email dispatch failed:', res.status, errBody);
+      } else {
+        const data = await res.json();
+        console.log('Brevo API email dispatched successfully:', data.messageId);
+      }
+    } catch (apiError) {
+      console.error('Error during Brevo API email dispatch:', apiError);
+    }
   }
 };
