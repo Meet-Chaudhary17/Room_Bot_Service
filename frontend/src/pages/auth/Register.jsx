@@ -216,7 +216,7 @@ export default function Register() {
                 >
                   <option value="">Select block</option>
                   {HOSTEL_BLOCKS.map((b) => (
-                    <option key={b} value={b}>{b}</option>
+                    <option key={b.id} value={b.id}>{b.name}</option>
                   ))}
                 </select>
                 {errors.blockId && <span className="text-xs font-medium text-rose-500 pl-1">{errors.blockId}</span>}
