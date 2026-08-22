@@ -3,20 +3,22 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import { Clipboard, FileText, AlertCircle, Wrench } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { createRequest } from '../../services/student.service';
+import useAuth from '../../hooks/useAuth';
 import Input from '../../components/common/Input';
 import Button from '../../components/common/Button';
 
 const PREDEFINED_CATEGORIES = [
-  { id: 'cleaning', name: 'Cleaning' },
-  { id: 'electrical', name: 'Electrical Maintenance' },
-  { id: 'plumbing', name: 'Plumbing' },
-  { id: 'ac', name: 'AC Maintenance' },
-  { id: 'furniture', name: 'Furniture & Carpentry' }
+  { id: 1, name: 'Cleaning' },
+  { id: 2, name: 'Electrical Maintenance' },
+  { id: 3, name: 'Plumbing' },
+  { id: 4, name: 'AC Maintenance' },
+  { id: 5, name: 'Furniture & Carpentry' }
 ];
 
 export default function CreateRequest() {
   const navigate = useNavigate();
   const location = useLocation();
+  const { user } = useAuth();
   const preSelectedCategory = location.state?.category || '';
 
   // Form fields
@@ -61,8 +63,8 @@ export default function CreateRequest() {
       const response = await createRequest({
         title,
         description,
-        serviceTypeId,
-        priority: Number(priority)
+        category_id: Number(serviceTypeId),
+        room_number: user?.roomNumber || user?.room_number || ''
       });
       toast.success(response.message || 'Service request submitted successfully!');
       navigate('/student/dashboard');

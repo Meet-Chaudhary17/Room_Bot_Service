@@ -14,8 +14,10 @@ export default function Register() {
   const [isStudent, setIsStudent] = useState(true);
   
   const HOSTEL_BLOCKS = [
-    'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J',
-    'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R', 'S', 'T'
+    { id: 1, name: 'A' }, { id: 2, name: 'B' }, { id: 3, name: 'C' }, { id: 4, name: 'D' }, { id: 5, name: 'E' },
+    { id: 6, name: 'F' }, { id: 7, name: 'G' }, { id: 8, name: 'H' }, { id: 9, name: 'I' }, { id: 10, name: 'J' },
+    { id: 11, name: 'K' }, { id: 12, name: 'L' }, { id: 13, name: 'M' }, { id: 14, name: 'N' }, { id: 15, name: 'O' },
+    { id: 16, name: 'P' }, { id: 17, name: 'Q' }, { id: 18, name: 'R' }, { id: 19, name: 'S' }, { id: 20, name: 'T' }
   ];
 
   // Form fields
@@ -56,29 +58,29 @@ export default function Register() {
     try {
       if (isStudent) {
         const payload = {
-          registrationNo: idValue,
-          name,
+          registration_number: idValue,
+          full_name: name,
           email,
-          phone: phone || null,
+          phone_number: phone || null,
           password,
-          confirmPassword,
-          roomNumber,
+          confirm_password: confirmPassword,
+          room_number: roomNumber,
           gender,
-          blockId
+          block_id: Number(blockId)
         };
         await registerStudent(payload);
         toast.success('Student account registered! Please check email for OTP verification.');
         navigate('/verify-otp', { state: { email } });
       } else {
         const payload = {
-          employeeId: idValue,
-          name,
+          employee_id: idValue,
+          full_name: name,
           email,
-          phone: phone || null,
+          phone_number: phone || null,
           password,
-          confirmPassword,
-          role,
-          blockId
+          confirm_password: confirmPassword,
+          service_role: role,
+          block_id: Number(blockId)
         };
         await registerStaff(payload);
         toast.success('Staff account registered! Please check email for OTP verification.');

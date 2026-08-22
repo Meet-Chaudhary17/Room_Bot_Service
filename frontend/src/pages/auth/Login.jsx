@@ -44,7 +44,11 @@ export default function Login() {
       const response = await login(email, password);
       toast.success(response.message || 'Login successful!');
       
-      const role = response.data.role;
+      const userObj = response.data.user;
+      let role = response.data.role || userObj?.role;
+      if (role === 'ADMINISTRATOR') {
+        role = 'ADMIN';
+      }
       
       // Redirect based on role
       if (from) {

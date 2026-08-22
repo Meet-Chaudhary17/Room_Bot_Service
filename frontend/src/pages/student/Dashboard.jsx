@@ -40,12 +40,12 @@ export default function Dashboard() {
       setLoading(true);
       try {
         const reqRes = await getRequestHistory({ limit: 10 });
-        const reqs = reqRes.data.requests || [];
+        const reqs = Array.isArray(reqRes.data) ? reqRes.data : (reqRes.data?.requests || reqRes.data || []);
         setRequests(reqs);
 
         // Calculate aggregates
-        const active = reqs.filter(r => ['PENDING', 'ASSIGNED', 'IN_PROGRESS', 'OTP_PENDING'].includes(r.status)).length;
-        const completed = reqs.filter(r => r.status === 'COMPLETED').length;
+        const active = reqs.filter(r => ['PENDING', 'ASSIGNED', 'IN_PROGRESS', 'OTP_PENDING'].includes(r.requestStatus || r.status)).length;
+        const completed = reqs.filter(r => (r.requestStatus || r.status) === 'COMPLETED').length;
         
         setActiveCount(active);
         setCompletedCount(completed);
@@ -204,20 +204,20 @@ export default function Dashboard() {
                   <div className="space-y-1.5 min-w-0">
                     <div className="flex items-center gap-2 flex-wrap">
                       <span className="px-2 py-0.5 text-[9px] font-bold text-slate-500 bg-slate-100 rounded-full">
-                        {req.id.slice(-6).toUpperCase()}
+                        #{req.id}
                       </span>
                       <span className="px-2 py-0.5 text-[9px] font-bold text-indigo-600 bg-indigo-50 rounded-full">
-                        {req.serviceType?.name || 'Service'}
+                        {req.category?.categoryName || 'Service'}
                       </span>
                     </div>
                     <p className="text-xs font-bold text-slate-800 truncate">{req.title}</p>
                     <p className="text-[10px] text-slate-400 font-medium">
-                      {formatDate(req.createdAt)} · {req.staff?.name || 'Unassigned'}
+                      {formatDate(req.createdAt)} · {req.assignedStaff?.fullName || 'Unassigned'}
                     </p>
                   </div>
 
-                  <span className={`px-2.5 py-1 text-[10px] font-bold rounded-full border ${getStatusBadgeClass(req.status)}`}>
-                    {req.status.replace('_', ' ')}
+                  <span className={`px-2.5 py-1 text-[10px] font-bold rounded-full border ${getStatusBadgeClass(req.requestStatus || req.status)}`}>
+                    {(req.requestStatus || req.status || '').replace('_', ' ')}
                   </span>
                 </div>
               ))

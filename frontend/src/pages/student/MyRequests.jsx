@@ -33,7 +33,8 @@ export default function MyRequests() {
       if (status) params.status = status;
 
       const res = await getRequestHistory(params);
-      setRequests(res.data.requests || []);
+      const reqs = Array.isArray(res.data) ? res.data : (res.data?.requests || res.data || []);
+      setRequests(reqs);
       setTotalPages(res.data.pagination?.totalPages || 1);
       setHasNextPage(res.data.pagination?.hasNextPage || false);
       setHasPreviousPage(res.data.pagination?.hasPreviousPage || false);
@@ -127,10 +128,10 @@ export default function MyRequests() {
               <div className="space-y-2 flex-1 min-w-0">
                 <div className="flex items-center gap-2 flex-wrap">
                   <span className="px-2.5 py-0.5 text-[9px] font-bold text-slate-500 bg-slate-100 rounded-full border border-slate-200">
-                    ID: {req.id.slice(-6).toUpperCase()}
+                    ID: #{req.id}
                   </span>
                   <span className="px-2.5 py-0.5 text-[9px] font-bold text-indigo-600 bg-indigo-50 rounded-full border border-indigo-100">
-                    {req.serviceType?.name || 'Service'}
+                    {req.category?.categoryName || 'Service'}
                   </span>
                   <span className={`px-2.5 py-0.5 text-[9px] font-bold rounded-full border ${getPriorityBadgeClass(req.priority)}`}>
                     {req.priority === 3 ? 'High' : req.priority === 2 ? 'Medium' : 'Low'} Priority
@@ -141,18 +142,18 @@ export default function MyRequests() {
                 <p className="text-xs text-slate-500 leading-relaxed font-semibold">{req.description}</p>
                 
                 <p className="text-[10px] text-slate-400 font-medium">
-                  Submitted: {formatDate(req.createdAt)} · Staff Assigned: <span className="font-semibold text-slate-600">{req.staff?.name || 'Unassigned'}</span>
+                  Submitted: {formatDate(req.createdAt)} · Staff Assigned: <span className="font-semibold text-slate-600">{req.assignedStaff?.fullName || 'Unassigned'}</span>
                 </p>
               </div>
 
               {/* Right Column: Status & Actions */}
               <div className="flex flex-row md:flex-col items-center md:items-end justify-between md:justify-center gap-4">
-                <span className={`px-3 py-1 text-xs font-bold rounded-full border ${getStatusBadgeClass(req.status)}`}>
-                  {req.status.replace('_', ' ')}
+                <span className={`px-3 py-1 text-xs font-bold rounded-full border ${getStatusBadgeClass(req.requestStatus || req.status)}`}>
+                  {(req.requestStatus || req.status || '').replace('_', ' ')}
                 </span>
 
                 {/* Submit Feedback Button (for completed requests without feedback) */}
-                {req.status === 'COMPLETED' && !req.feedback && (
+                {(req.requestStatus || req.status) === 'COMPLETED' && !req.feedback && (
                   <Button 
                     variant="secondary" 
                     size="sm"

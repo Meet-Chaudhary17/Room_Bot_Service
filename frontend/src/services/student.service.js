@@ -1,12 +1,12 @@
 import axios from './axios';
 
 export const createRequest = async (requestData) => {
-  const response = await axios.post('/students/requests', requestData);
+  const response = await axios.post('/students/service-requests', requestData);
   return response.data;
 };
 
 export const getRequestHistory = async (params) => {
-  const response = await axios.get('/students/requests', { params });
+  const response = await axios.get('/students/service-requests', { params });
   return response.data;
 };
 
@@ -21,7 +21,11 @@ export const getComplaints = async () => {
 };
 
 export const submitFeedback = async (requestId, feedbackData) => {
-  const response = await axios.post(`/students/requests/${requestId}/feedback`, feedbackData);
+  const response = await axios.post('/students/feedback', {
+    request_id: Number(requestId),
+    rating: Number(feedbackData.rating),
+    comments: feedbackData.comment || feedbackData.comments
+  });
   return response.data;
 };
 
