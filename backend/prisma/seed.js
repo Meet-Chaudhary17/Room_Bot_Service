@@ -14,29 +14,27 @@ const categories = [
 async function main() {
   const passwordHash = await bcrypt.hash('u6002_teeM', 12);
 
-  const administrator = await prisma.administrator.upsert({
-    where: { username: 'Meetu_2006' },
-    update: {},
-    create: {
-      username: 'Meetu_2006',
+  // Clean up any old administrator records to prevent constraints/duplicates issues
+  await prisma.accountCredential.deleteMany({
+    where: { email: { in: ['admin@roombot.local', 'Meetu_2006@gmail.com'] } }
+  });
+  await prisma.administrator.deleteMany({
+    where: { username: { in: ['Meetu_2006', 'Meetu_2006@gmail.com'] } }
+  });
+
+  const administrator = await prisma.administrator.create({
+    data: {
+      username: 'Meetu_2006@gmail.com',
       fullName: 'Room-Bot Administrator',
-      email: 'admin@roombot.local',
+      email: 'Meetu_2006@gmail.com',
     },
   });
 
-  await prisma.accountCredential.upsert({
-    where: { email: 'admin@roombot.local' },
-    update: {
+  await prisma.accountCredential.create({
+    data: {
       userType: UserType.ADMINISTRATOR,
       userId: administrator.id,
-      passwordHash,
-      emailVerified: true,
-      lastPasswordChange: new Date(),
-    },
-    create: {
-      userType: UserType.ADMINISTRATOR,
-      userId: administrator.id,
-      email: 'admin@roombot.local',
+      email: 'Meetu_2006@gmail.com',
       passwordHash,
       emailVerified: true,
       lastPasswordChange: new Date(),
