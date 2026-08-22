@@ -40,13 +40,19 @@ export class AdminRepository extends BaseRepository {
     }, {});
 
     const categoryCounts = await this.prisma.serviceRequest.groupBy({
-      by: ['serviceRole'],
+      by: ['categoryId'],
       _count: { id: true }
     });
-    const requestsByServiceType = categoryCounts.map(cat => ({
-      name: cat.serviceRole === 'CLEANING' ? 'Cleaning' : cat.serviceRole === 'ELECTRICAL_MAINTENANCE' ? 'Electrical Maintenance' : cat.serviceRole === 'PLUMBING' ? 'Plumbing' : cat.serviceRole === 'AC_MAINTENANCE' ? 'AC Maintenance' : cat.serviceRole === 'FURNITURE_REPAIR' ? 'Furniture Repair' : cat.serviceRole,
-      count: cat._count.id
-    }));
+    const categories = await this.prisma.serviceCategory.findMany();
+    const requestsByServiceType = categoryCounts.map(c => {
+      const cat = categories.find(cat => cat.id === c.categoryId);
+      const role = cat?.serviceRole;
+      const name = role === 'CLEANING' ? 'Cleaning' : role === 'ELECTRICAL_MAINTENANCE' ? 'Electrical Maintenance' : role === 'PLUMBING' ? 'Plumbing' : role === 'AC_MAINTENANCE' ? 'AC Maintenance' : role === 'FURNITURE_REPAIR' ? 'Furniture Repair' : (cat?.categoryName || 'Unknown');
+      return {
+        name,
+        count: c._count.id
+      };
+    });
 
     return {
       totalStudents,

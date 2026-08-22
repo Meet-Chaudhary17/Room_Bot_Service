@@ -180,10 +180,10 @@ describe('Administrator Module Integration Tests', () => {
         .set('Authorization', `Bearer ${adminToken}`)
         .expect(200);
 
-      expect(response.body.data.length).toBe(1);
-      expect(response.body.data[0]).toMatchObject({
+      expect(response.body.data.students.length).toBe(1);
+      expect(response.body.data.students[0]).toMatchObject({
         name: 'Meet Chaudhary',
-        block: 'A Block',
+        block: { name: 'A Block' },
         status: 'Active'
       });
     });
@@ -196,13 +196,11 @@ describe('Administrator Module Integration Tests', () => {
         .set('Authorization', `Bearer ${adminToken}`)
         .expect(200);
 
-      expect(response.body.data.length).toBe(1);
-      expect(response.body.data[0]).toMatchObject({
+      expect(response.body.data.staff.length).toBe(1);
+      expect(response.body.data.staff[0]).toMatchObject({
         name: 'Rahul Kumar',
         role: 'Cleaning',
-        block: 'A Block',
-        activeRequests: 1,
-        completedRequests: 0,
+        block: { name: 'A Block' },
         status: 'Active'
       });
     });
