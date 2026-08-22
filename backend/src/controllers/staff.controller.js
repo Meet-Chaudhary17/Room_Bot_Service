@@ -22,6 +22,19 @@ export const staffController = {
     res.json({ success: true, data });
   }),
 
+  requestsLegacy: asyncHandler(async (req, res) => {
+    const { status, priority, search, page, limit } = req.query;
+    const filters = {
+      status,
+      priority,
+      search,
+      page: page ? Number(page) : undefined,
+      limit: limit ? Number(limit) : undefined
+    };
+    const data = await staffService.listAssignedRequestsLegacy(getStaffId(req), filters);
+    res.json({ success: true, data });
+  }),
+
   requestDetails: asyncHandler(async (req, res) => {
     const requestId = Number(req.params.requestId);
     const data = await staffService.getRequestDetails(requestId, getStaffId(req));

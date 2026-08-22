@@ -38,9 +38,12 @@ apiRouter.post('/students/feedback', ...studentOnly, validate(feedback), student
 
 const staffOnly = [authenticate, authorize('STAFF')];
 apiRouter.get('/staff/dashboard', ...staffOnly, staffController.dashboard);
-apiRouter.get('/staff/service-requests', ...staffOnly, staffController.requests);
+apiRouter.get('/staff/service-requests', ...staffOnly, staffController.requestsLegacy);
+apiRouter.get('/staff/requests', ...staffOnly, staffController.requests);
 apiRouter.get('/staff/service-requests/:requestId', ...staffOnly, staffController.requestDetails);
+apiRouter.get('/staff/requests/:requestId', ...staffOnly, staffController.requestDetails);
 apiRouter.patch('/staff/service-requests/:requestId/status', ...staffOnly, validate(staffStatusUpdate), staffController.updateStatus);
+apiRouter.patch('/staff/requests/:requestId/start', ...staffOnly, staffController.updateStatus);
 apiRouter.get('/staff/service-requests/:requestId/occupants', ...staffOnly, staffController.requestOccupants);
 apiRouter.post('/staff/service-requests/:requestId/generate-otp', ...staffOnly, validate(staffGenerateOtp), staffController.generateOtp);
 apiRouter.post('/staff/service-requests/:requestId/verify-otp', ...staffOnly, validate(staffVerifyOtp), staffController.verifyOtp);

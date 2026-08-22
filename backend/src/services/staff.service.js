@@ -7,6 +7,11 @@ import { emailService } from './email.service.js';
 
 const repository = new StaffRepository(prisma);
 
+const cleanBlockName = (blockName) => {
+  if (!blockName) return '';
+  return blockName.replace(/block/gi, '').trim();
+};
+
 export const staffService = {
   async getDashboard(staffId) {
     const stats = await repository.dashboardStats(staffId);
@@ -28,13 +33,42 @@ export const staffService = {
 
   async listAssignedRequests(staffId, filters) {
     const { items, total } = await repository.assignedRequests(staffId, filters);
+    const limit = filters.limit || 10;
+    const page = filters.page || 1;
+    const totalPages = Math.ceil(total / limit);
 
     const formatted = items.map(req => ({
       requestId: req.id,
       studentName: req.student.fullName,
       serviceType: req.category.categoryName,
       status: req.requestStatus === 'ASSIGNED' ? 'Assigned' : req.requestStatus === 'IN_PROGRESS' ? 'In Progress' : req.requestStatus,
-      block: req.student.block.blockName,
+      block: cleanBlockName(req.student.block.blockName),
+      roomNumber: req.roomNumber,
+      priority: req.priority
+    }));
+
+    return {
+      requests: formatted,
+      pagination: {
+        total,
+        page,
+        limit,
+        totalPages,
+        hasNextPage: page < totalPages,
+        hasPreviousPage: page > 1
+      }
+    };
+  },
+
+  async listAssignedRequestsLegacy(staffId, filters) {
+    const { items, total } = await repository.assignedRequests(staffId, filters);
+
+    const formatted = items.map(req => ({
+      requestId: req.id,
+      studentName: req.student.fullName,
+      serviceType: req.category.categoryName,
+      status: req.requestStatus === 'ASSIGNED' ? 'Assigned' : req.requestStatus === 'IN_PROGRESS' ? 'In Progress' : req.requestStatus,
+      block: cleanBlockName(req.student.block.blockName),
       roomNumber: req.roomNumber,
       priority: req.priority
     }));

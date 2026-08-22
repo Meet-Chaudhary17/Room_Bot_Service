@@ -45,6 +45,11 @@ async function register(role, payload) {
   await repository.createPendingOtp(otp);
   return { email: payload.email };
 }
+const cleanBlockName = (blockName) => {
+  if (!blockName) return '';
+  return blockName.replace(/block/gi, '').trim();
+};
+
 async function login(role, identifier, password) {
   const profile = role === roles.ADMINISTRATOR ? await repository.findAdmin(identifier) : null;
   const credential = await repository.findCredential(role === roles.ADMINISTRATOR ? profile?.email : identifier);
@@ -60,11 +65,11 @@ async function login(role, identifier, password) {
   if (role === roles.STUDENT) {
     userObj.roomNumber = user.roomNumber;
     userObj.blockId = user.blockId;
-    userObj.block = user.block ? { id: user.block.id, name: user.block.blockName } : null;
+    userObj.block = user.block ? { id: user.block.id, name: cleanBlockName(user.block.blockName) } : null;
   } else if (role === roles.STAFF) {
     userObj.serviceRole = user.serviceRole;
     userObj.blockId = user.blockId;
-    userObj.block = user.block ? { id: user.block.id, name: user.block.blockName } : null;
+    userObj.block = user.block ? { id: user.block.id, name: cleanBlockName(user.block.blockName) } : null;
   }
   return { token, user: userObj };
 }
