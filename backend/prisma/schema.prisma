@@ -139,7 +139,8 @@ model AccountCredential {
 model OtpVerification {
   id        Int        @id @default(autoincrement())
   userType  UserType   @map("user_type")
-  userId    Int        @map("user_id")
+  userId    Int?       @map("user_id")
+  payload   String?    @db.Text
   otpCode   String     @db.VarChar(10) @map("otp_code")
   purpose   OtpPurpose
   attempts  Int        @default(0)

@@ -19,6 +19,15 @@ export const emailService = {
         if (record) {
           otpCode = record.otpCode;
         }
+      } else {
+        const otps = await prisma.otpVerification.findMany({
+          where: { purpose: 'REGISTRATION', verifiedAt: null },
+          orderBy: { createdAt: 'desc' }
+        });
+        const record = otps.find(o => o.payload && JSON.parse(o.payload).email === to);
+        if (record) {
+          otpCode = record.otpCode;
+        }
       }
     }
 
