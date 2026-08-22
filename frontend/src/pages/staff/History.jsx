@@ -60,7 +60,7 @@ export default function HistoryPage() {
               <div className="space-y-1.5 min-w-0">
                 <div className="flex items-center gap-2">
                   <span className="px-2 py-0.5 text-[9px] font-bold text-slate-500 bg-slate-100 rounded-full border border-slate-200">
-                    ID: {req.id.slice(-6).toUpperCase()}
+                    ID: {String(req.id).toUpperCase()}
                   </span>
                   <span className="px-2 py-0.5 text-[9px] font-bold text-indigo-600 bg-indigo-50 rounded-full border border-indigo-100">
                     {req.serviceType?.name || 'Service'}

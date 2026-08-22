@@ -270,7 +270,7 @@ export default function Dashboard() {
                 <div className="space-y-1.5 min-w-0 flex-1">
                   <div className="flex items-center gap-2 flex-wrap">
                     <span className="px-2.5 py-0.5 text-[9px] font-bold text-slate-500 bg-slate-100 rounded-full border border-slate-200">
-                      ID: {req.id.slice(-6).toUpperCase()}
+                      ID: {String(req.id).toUpperCase()}
                     </span>
                     <span className="px-2.5 py-0.5 text-[9px] font-bold text-indigo-600 bg-indigo-50 rounded-full border border-indigo-100">
                       {req.serviceType?.name || 'Service'}
