@@ -27,8 +27,11 @@ export default function Login() {
     setErrors({});
     const newErrors = {};
 
-    if (!validateEmail(email)) {
-      newErrors.email = 'Please enter a valid email address';
+    const isEmail = validateEmail(email);
+    const isUsername = /^[a-zA-Z0-9_]{3,20}$/.test(email);
+
+    if (!isEmail && !isUsername) {
+      newErrors.email = 'Please enter a valid email address or username';
     }
     if (!validatePassword(password)) {
       newErrors.password = 'Password must be at least 8 characters long';
@@ -91,11 +94,11 @@ export default function Login() {
           <form className="space-y-4" onSubmit={handleLogin}>
             <Input
               id="email"
-              label="Email address"
-              type="email"
+              label="Email address or Username"
+              type="text"
               icon={Mail}
               required
-              placeholder="you@university.edu.gh"
+              placeholder="you@university.edu.gh or username"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               error={errors.email}

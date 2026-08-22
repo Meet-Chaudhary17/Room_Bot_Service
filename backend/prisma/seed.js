@@ -24,9 +24,9 @@ async function main() {
 
   const administrator = await prisma.administrator.create({
     data: {
-      username: 'Meetu_2006@gmail.com',
+      username: 'Meetu_2006',
       fullName: 'Room-Bot Administrator',
-      email: 'Meetu_2006@gmail.com',
+      email: 'admin@roombot.local',
     },
   });
 
@@ -34,7 +34,7 @@ async function main() {
     data: {
       userType: UserType.ADMINISTRATOR,
       userId: administrator.id,
-      email: 'Meetu_2006@gmail.com',
+      email: 'admin@roombot.local',
       passwordHash,
       emailVerified: true,
       lastPasswordChange: new Date(),
