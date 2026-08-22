@@ -60,11 +60,11 @@ async function login(role, identifier, password) {
   if (role === roles.STUDENT) {
     userObj.roomNumber = user.roomNumber;
     userObj.blockId = user.blockId;
-    userObj.block = user.block;
+    userObj.block = user.block ? { id: user.block.id, name: user.block.blockName } : null;
   } else if (role === roles.STAFF) {
     userObj.serviceRole = user.serviceRole;
     userObj.blockId = user.blockId;
-    userObj.block = user.block;
+    userObj.block = user.block ? { id: user.block.id, name: user.block.blockName } : null;
   }
   return { token, user: userObj };
 }
