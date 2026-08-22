@@ -36,26 +36,15 @@ export default function Navbar() {
 
         {/* CTA Buttons */}
         <div className="flex items-center gap-4">
-          {isAuthenticated ? (
-            <button 
-              onClick={handleDashboardRedirect}
-              className="px-4 py-2 text-xs font-bold text-white bg-indigo-600 rounded-xl hover:bg-indigo-700 active:bg-indigo-800 transition-all shadow-md shadow-indigo-100"
-            >
-              Go to Dashboard
-            </button>
-          ) : (
-            <>
-              <Link to="/login" className="text-sm font-bold text-slate-500 hover:text-slate-900 transition-colors">
-                Sign In
-              </Link>
-              <Link 
-                to="/register" 
-                className="px-4 py-2 text-xs font-bold text-white bg-indigo-600 rounded-xl hover:bg-indigo-700 active:bg-indigo-800 transition-all shadow-md shadow-indigo-100"
-              >
-                Get Started
-              </Link>
-            </>
-          )}
+          <Link to="/login" className="text-sm font-bold text-slate-500 hover:text-slate-900 transition-colors">
+            Sign In
+          </Link>
+          <Link 
+            to="/register" 
+            className="px-4 py-2 text-xs font-bold text-white bg-indigo-600 rounded-xl hover:bg-indigo-700 active:bg-indigo-800 transition-all shadow-md shadow-indigo-100"
+          >
+            Get Started
+          </Link>
         </div>
       </div>
     </header>
