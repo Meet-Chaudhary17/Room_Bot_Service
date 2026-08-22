@@ -47,7 +47,7 @@ describe('Administrator Module Integration Tests', () => {
     execSync('npx prisma db push --accept-data-loss', {
       env: { ...process.env, DATABASE_URL: process.env.DATABASE_URL }
     });
-  });
+  }, 30000);
 
   beforeEach(async () => {
     await cleanDb();
