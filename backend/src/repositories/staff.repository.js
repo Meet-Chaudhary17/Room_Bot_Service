@@ -1,5 +1,41 @@
 import { BaseRepository } from './base.repository.js';
 
+function getDefaultTime(role) {
+  if (role === 'CLEANING') return 420;
+  if (role === 'ELECTRICAL_MAINTENANCE') return 1200;
+  if (role === 'PLUMBING') return 1800;
+  if (role === 'FURNITURE_REPAIR') return 1500;
+  return 900;
+}
+
+async function updateStaffWorkload(tx, staffId) {
+  const assigned = await tx.serviceRequest.findMany({
+    where: {
+      assignedStaffId: staffId,
+      requestStatus: { in: ['ASSIGNED', 'IN_PROGRESS'] }
+    },
+    include: { category: true }
+  });
+
+  let workload = 0;
+  for (const req of assigned) {
+    const stats = await tx.staffCategoryStats.findUnique({
+      where: { staffId_categoryId: { staffId, categoryId: req.categoryId } }
+    });
+    const avg = stats && stats.completedCount > 0 ? stats.averageTime : 0;
+    if (avg > 0) {
+      workload += avg;
+    } else {
+      workload += getDefaultTime(req.category.serviceRole);
+    }
+  }
+
+  await tx.staff.update({
+    where: { id: staffId },
+    data: { currentWorkload: workload }
+  });
+}
+
 export class StaffRepository extends BaseRepository {
   profile(id) {
     return this.prisma.staff.findUnique({
@@ -142,13 +178,16 @@ export class StaffRepository extends BaseRepository {
 
   completeRequest(requestId, staffId, otpId, completedAt) {
     return this.prisma.$transaction(async (tx) => {
-      // Mark OTP as verified
       await tx.otpVerification.update({
         where: { id: otpId },
         data: { verifiedAt: completedAt }
       });
 
-      // Update Service Request status to COMPLETED
+      const req = await tx.serviceRequest.findUnique({
+        where: { id: requestId }
+      });
+      if (!req) throw new Error('Request not found.');
+
       await tx.serviceRequest.updateMany({
         where: {
           id: requestId,
@@ -160,6 +199,45 @@ export class StaffRepository extends BaseRepository {
           completedAt
         }
       });
+
+      const T = req.pausedDuration !== null ? req.pausedDuration : 0;
+      const stats = await tx.staffCategoryStats.findUnique({
+        where: {
+          staffId_categoryId: {
+            staffId,
+            categoryId: req.categoryId
+          }
+        }
+      });
+
+      let X_new = 1;
+      let Y_new = T;
+
+      if (stats) {
+        const X = stats.completedCount;
+        const Y = stats.averageTime;
+        X_new = X + 1;
+        Y_new = (X * Y + T) / (X + 1);
+
+        await tx.staffCategoryStats.update({
+          where: { id: stats.id },
+          data: {
+            completedCount: X_new,
+            averageTime: Y_new
+          }
+        });
+      } else {
+        await tx.staffCategoryStats.create({
+          data: {
+            staffId,
+            categoryId: req.categoryId,
+            completedCount: X_new,
+            averageTime: Y_new
+          }
+        });
+      }
+
+      await updateStaffWorkload(tx, staffId);
     });
   }
 

@@ -168,6 +168,12 @@ export const staffService = {
       throw new AppError(409, 'INVALID_STATUS_TRANSITION', 'OTP can only be generated for requests that are In Progress.');
     }
 
+    const elapsedSeconds = req.startedAt ? Math.round((new Date() - new Date(req.startedAt)) / 1000) : 0;
+    await prisma.serviceRequest.update({
+      where: { id: requestId },
+      data: { pausedDuration: elapsedSeconds }
+    });
+
     const targetStudentId = studentId || req.studentId;
 
     // Verify that the student exists and belongs to the exact same block and room as the request

@@ -8,8 +8,39 @@ export class AuthRepository extends BaseRepository {
     if (role === 'STAFF') return this.prisma.staff.findUnique({ where: { id }, include: { block: true } });
     return this.prisma.administrator.findUnique({ where: { id } });
   }
-  createStudent(data, credential, otp) { return this.prisma.$transaction(async (tx) => { const user = await tx.student.create({ data }); await tx.accountCredential.create({ data: { ...credential, userId: user.id, userType: 'STUDENT' } }); await tx.otpVerification.create({ data: { ...otp, userId: user.id, userType: 'STUDENT' } }); return user; }); }
-  createStaff(data, credential, otp) { return this.prisma.$transaction(async (tx) => { const user = await tx.staff.create({ data }); await tx.accountCredential.create({ data: { ...credential, userId: user.id, userType: 'STAFF' } }); await tx.otpVerification.create({ data: { ...otp, userId: user.id, userType: 'STAFF' } }); return user; }); }
+  createStudent(data, credential, otp) {
+    return this.prisma.$transaction(async (tx) => {
+      let studentFloor = 0;
+      const cleanRoom = data.roomNumber ? String(data.roomNumber).trim() : '';
+      if (/^\d+$/.test(cleanRoom) && cleanRoom.length >= 3) {
+        studentFloor = parseInt(cleanRoom.substring(0, cleanRoom.length - 2), 10);
+      }
+      const user = await tx.student.create({
+        data: {
+          ...data,
+          floor: studentFloor
+        }
+      });
+      await tx.accountCredential.create({ data: { ...credential, userId: user.id, userType: 'STUDENT' } });
+      await tx.otpVerification.create({ data: { ...otp, userId: user.id, userType: 'STUDENT' } });
+      return user;
+    });
+  }
+  createStaff(data, credential, otp) {
+    return this.prisma.$transaction(async (tx) => {
+      const user = await tx.staff.create({
+        data: {
+          ...data,
+          primaryRole: data.primaryRole || data.serviceRole,
+          secondaryRole: data.secondaryRole || null,
+          isActive: data.isActive !== undefined ? data.isActive : false
+        }
+      });
+      await tx.accountCredential.create({ data: { ...credential, userId: user.id, userType: 'STAFF' } });
+      await tx.otpVerification.create({ data: { ...otp, userId: user.id, userType: 'STAFF' } });
+      return user;
+    });
+  }
   replaceOtp(otp) { return this.prisma.$transaction([this.prisma.otpVerification.updateMany({ where: { userType: otp.userType, userId: otp.userId, purpose: otp.purpose, verifiedAt: null }, data: { expiresAt: new Date() } }), this.prisma.otpVerification.create({ data: otp })]); }
   findLatestOtp(userType, userId, purpose) { return this.prisma.otpVerification.findFirst({ where: { userType, userId, purpose, verifiedAt: null }, orderBy: { createdAt: 'desc' } }); }
   updateOtp(id, data) { return this.prisma.otpVerification.update({ where: { id }, data }); }
@@ -39,6 +70,11 @@ export class AuthRepository extends BaseRepository {
     return this.prisma.$transaction(async (tx) => {
       let userId;
       if (userType === 'STUDENT') {
+        let studentFloor = 0;
+        const cleanRoom = payload.room_number ? String(payload.room_number).trim() : '';
+        if (/^\d+$/.test(cleanRoom) && cleanRoom.length >= 3) {
+          studentFloor = parseInt(cleanRoom.substring(0, cleanRoom.length - 2), 10);
+        }
         const student = await tx.student.create({
           data: {
             registrationNumber: payload.registration_number,
@@ -46,6 +82,7 @@ export class AuthRepository extends BaseRepository {
             email: payload.email,
             phoneNumber: payload.phone_number,
             roomNumber: payload.room_number,
+            floor: studentFloor,
             blockId: payload.block_id
           }
         });
@@ -55,7 +92,10 @@ export class AuthRepository extends BaseRepository {
           data: {
             fullName: payload.full_name,
             email: payload.email,
-            serviceRole: payload.service_role,
+            serviceRole: payload.service_role || payload.primary_role,
+            primaryRole: payload.primary_role || payload.service_role,
+            secondaryRole: payload.secondary_role || null,
+            isActive: false,
             blockId: payload.block_id
           }
         });

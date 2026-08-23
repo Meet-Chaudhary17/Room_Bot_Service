@@ -20,8 +20,8 @@ export const getStaff = async (params) => {
   return response.data;
 };
 
-export const toggleStaffStatus = async (staffId, isActive) => {
-  const response = await axios.patch(`/admin/staff/${staffId}/status`, { isActive });
+export const toggleStaffStatus = async (staffId, isActive, floor) => {
+  const response = await axios.patch(`/admin/staff/${staffId}/status`, { isActive, floor });
   return response.data;
 };
 

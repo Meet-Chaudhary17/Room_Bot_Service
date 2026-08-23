@@ -28,7 +28,8 @@ export default function Register() {
   const [blockId, setBlockId] = useState('');
   const [roomNumber, setRoomNumber] = useState('');
   const [gender, setGender] = useState('MALE'); // Default gender for student
-  const [role, setRole] = useState('CLEANING'); // Default role for staff
+  const [primaryRole, setPrimaryRole] = useState('CLEANING');
+  const [secondaryRole, setSecondaryRole] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
 
@@ -78,7 +79,8 @@ export default function Register() {
           phone_number: phone || undefined,
           password,
           confirm_password: confirmPassword,
-          service_role: role,
+          primary_role: primaryRole,
+          secondary_role: secondaryRole || undefined,
           block_id: Number(blockId)
         };
         await registerStaff(payload);
@@ -234,22 +236,53 @@ export default function Register() {
                   error={errors.roomNumber}
                 />
               ) : (
-                <div className="flex flex-col gap-1.5 w-full">
-                  <label className="text-xs font-bold text-slate-700">
-                    Role / Specialization <span className="text-rose-500">*</span>
-                  </label>
-                  <select
-                    value={role}
-                    onChange={(e) => setRole(e.target.value)}
-                    className="w-full py-3 px-4 rounded-xl border border-slate-200 bg-white text-sm font-semibold text-slate-800 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
-                  >
-                    <option value="CLEANING">Cleaning</option>
-                    <option value="ELECTRICIAN">Electrician</option>
-                    <option value="PLUMBER">Plumber</option>
-                    <option value="CARPENTER">Carpenter</option>
-                    <option value="GENERAL">General</option>
-                  </select>
-                </div>
+                <>
+                  <div className="flex flex-col gap-1.5 w-full">
+                    <label className="text-xs font-bold text-slate-700">
+                      Primary Role <span className="text-rose-500">*</span>
+                    </label>
+                    <select
+                      value={primaryRole}
+                      onChange={(e) => {
+                        setPrimaryRole(e.target.value);
+                        if (secondaryRole === e.target.value) {
+                          setSecondaryRole('');
+                        }
+                      }}
+                      className="w-full py-3 px-4 rounded-xl border border-slate-200 bg-white text-sm font-semibold text-slate-800 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
+                    >
+                      <option value="CLEANING">Cleaning</option>
+                      <option value="ELECTRICAL_MAINTENANCE">Electrical Maintenance</option>
+                      <option value="PLUMBING">Plumbing</option>
+                      <option value="AC_MAINTENANCE">AC Maintenance</option>
+                      <option value="FURNITURE_REPAIR">Furniture Repair</option>
+                    </select>
+                  </div>
+                  <div className="flex flex-col gap-1.5 w-full">
+                    <label className="text-xs font-bold text-slate-700">
+                      Secondary Role (Optional)
+                    </label>
+                    <select
+                      value={secondaryRole}
+                      onChange={(e) => setSecondaryRole(e.target.value)}
+                      className="w-full py-3 px-4 rounded-xl border border-slate-200 bg-white text-sm font-semibold text-slate-800 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
+                    >
+                      <option value="">None</option>
+                      {['CLEANING', 'ELECTRICAL_MAINTENANCE', 'PLUMBING', 'AC_MAINTENANCE', 'FURNITURE_REPAIR']
+                        .filter(r => r !== primaryRole)
+                        .map(r => (
+                          <option key={r} value={r}>
+                            {r === 'CLEANING' ? 'Cleaning' :
+                             r === 'ELECTRICAL_MAINTENANCE' ? 'Electrical Maintenance' :
+                             r === 'PLUMBING' ? 'Plumbing' :
+                             r === 'AC_MAINTENANCE' ? 'AC Maintenance' :
+                             r === 'FURNITURE_REPAIR' ? 'Furniture Repair' : r}
+                          </option>
+                        ))
+                      }
+                    </select>
+                  </div>
+                </>
               )}
             </div>
 

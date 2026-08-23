@@ -44,6 +44,6 @@ export const authController = {
     res.json({ success: true, data });
   }),
   sendOtp: asyncHandler(async (req,res)=>{const data=await authService.sendOtp(req.body); await emailService.sendOtp({to:data.email,purpose:req.body.purpose}); res.json({success:true,message:'OTP sent successfully.'});}),
-  verifyOtp: asyncHandler(async (req,res)=>{await authService.verifyOtp(req.body);res.json({success:true,message:'OTP verified successfully.'});}),
+  verifyOtp: asyncHandler(async (req,res)=>{const data = await authService.verifyOtp(req.body);res.json({success:true,message:'OTP verified successfully.',userType:data?.userType});}),
   logout: asyncHandler(async (_req,res)=>res.json({success:true,message:'Logged out successfully.'}))
 };

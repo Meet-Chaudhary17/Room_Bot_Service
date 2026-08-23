@@ -32,7 +32,9 @@ async function register(role, payload) {
     passwordHash,
     room_number: payload.room_number,
     block_id: payload.block_id,
-    service_role: payload.service_role
+    service_role: payload.primary_role || payload.service_role,
+    primary_role: payload.primary_role || payload.service_role,
+    secondary_role: payload.secondary_role || null
   };
   const otp = {
     userType: role,
@@ -113,7 +115,7 @@ export const authService = {
       }
       const payload = JSON.parse(record.payload);
       await repository.createVerifiedUser(record.id, record.userType, payload);
-      return;
+      return { userType: record.userType };
     }
     const credential = await repository.findCredential(email);
     if (!credential) throw new AppError(404, 'USER_NOT_FOUND', 'User not found.');

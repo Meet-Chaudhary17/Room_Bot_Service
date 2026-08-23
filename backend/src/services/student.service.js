@@ -18,8 +18,11 @@ export const studentService = {
     const staffCount = await prisma.staff.count({
       where: {
         blockId: profile.blockId,
-        serviceRole: category.serviceRole,
-        isActive: true
+        isActive: true,
+        OR: [
+          { primaryRole: category.serviceRole },
+          { secondaryRole: category.serviceRole }
+        ]
       }
     });
 

@@ -1,3 +1,4 @@
+import 'dotenv/config';
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import request from 'supertest';
 import bcrypt from 'bcrypt';

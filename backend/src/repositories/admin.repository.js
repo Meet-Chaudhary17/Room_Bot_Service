@@ -155,11 +155,15 @@ export class AdminRepository extends BaseRepository {
     });
   }
 
-  updateStaffStatus(staffId, isActive, adminId, ipAddress) {
+  updateStaffStatus(staffId, isActive, floor, adminId, ipAddress) {
     return this.prisma.$transaction(async (tx) => {
+      const updateData = { isActive };
+      if (isActive && floor !== undefined) {
+        updateData.floor = floor;
+      }
       const staff = await tx.staff.update({
         where: { id: staffId },
-        data: { isActive }
+        data: updateData
       });
 
       await tx.auditLog.create({
@@ -168,7 +172,7 @@ export class AdminRepository extends BaseRepository {
           action: isActive ? 'UNBLOCK_STAFF' : 'BLOCK_STAFF',
           targetTable: 'staff',
           targetRecordId: staffId,
-          description: `Staff ${staff.fullName} status changed to ${isActive ? 'Active' : 'Blocked'}`,
+          description: `Staff ${staff.fullName} status changed to ${isActive ? 'Active' : 'Blocked'}${isActive && floor !== undefined ? ` with floor ${floor}` : ''}`,
           ipAddress
         }
       });

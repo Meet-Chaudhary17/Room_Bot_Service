@@ -61,6 +61,9 @@ export const adminService = {
         email: item.email,
         phone: item.phoneNumber,
         serviceRole: item.serviceRole,
+        primaryRole: item.primaryRole,
+        secondaryRole: item.secondaryRole,
+        floor: item.floor,
         role: item.serviceRole === 'CLEANING' ? 'Cleaning' : item.serviceRole === 'ELECTRICAL_MAINTENANCE' ? 'Electrical Maintenance' : item.serviceRole === 'PLUMBING' ? 'Plumbing' : item.serviceRole === 'AC_MAINTENANCE' ? 'AC Maintenance' : item.serviceRole === 'FURNITURE_REPAIR' ? 'Furniture Repair' : item.serviceRole,
         block: { id: item.block.id, name: item.block.blockName },
         activeRequests,
@@ -96,7 +99,7 @@ export const adminService = {
     await repository.updateStudentStatus(studentId, isBlocked, adminId, ipAddress);
   },
 
-  async updateStaffStatus(staffId, status, adminId, ipAddress) {
+  async updateStaffStatus(staffId, status, floor, adminId, ipAddress) {
     if (!['Active', 'Blocked'].includes(status)) {
       throw new AppError(400, 'INVALID_STATUS', 'Status must be Active or Blocked.');
     }
@@ -105,7 +108,10 @@ export const adminService = {
     if (!staff) {
       throw new AppError(404, 'STAFF_NOT_FOUND', 'Staff member not found.');
     }
-    await repository.updateStaffStatus(staffId, isActive, adminId, ipAddress);
+    if (isActive && floor === undefined) {
+      throw new AppError(400, 'FLOOR_REQUIRED', 'Staff floor assignment is required when activating/approving.');
+    }
+    await repository.updateStaffStatus(staffId, isActive, floor, adminId, ipAddress);
   },
 
   async listServiceRequests(filters) {

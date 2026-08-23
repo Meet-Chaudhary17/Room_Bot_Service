@@ -47,8 +47,22 @@ export default function Staff() {
   };
 
   const handleToggleStatus = async (staffId, currentActive) => {
+    let floorVal = undefined;
+    if (!currentActive) {
+      const floorInput = prompt('Please assign a floor number for this staff member (1-99):');
+      if (floorInput === null) {
+        return; // Admin cancelled the prompt
+      }
+      const parsedFloor = parseInt(floorInput, 10);
+      if (isNaN(parsedFloor) || parsedFloor <= 0 || parsedFloor > 99) {
+        toast.error('Invalid floor number. Floor must be a number between 1 and 99.');
+        return;
+      }
+      floorVal = parsedFloor;
+    }
+
     try {
-      await toggleStaffStatus(staffId, !currentActive);
+      await toggleStaffStatus(staffId, !currentActive, floorVal);
       toast.success(currentActive ? 'Staff deactivated successfully!' : 'Staff account activated successfully!');
       fetchStaff();
     } catch (err) {
@@ -111,12 +125,19 @@ export default function Staff() {
                     <td className="px-6 py-4 font-bold text-slate-800">{staff.name}</td>
                     <td className="px-6 py-4">{staff.employeeId}</td>
                     <td className="px-6 py-4">
-                      <span className="px-2 py-0.5 text-[9px] font-bold text-indigo-600 bg-indigo-50 rounded-full border border-indigo-100">
-                        {staff.role}
-                      </span>
+                      <div className="flex flex-col gap-1">
+                        <span className="px-2 py-0.5 text-[9px] font-bold text-indigo-600 bg-indigo-50 rounded-full border border-indigo-100 w-fit">
+                          P: {staff.primaryRole || staff.role}
+                        </span>
+                        {staff.secondaryRole && (
+                          <span className="px-2 py-0.5 text-[9px] font-bold text-teal-600 bg-teal-50 rounded-full border border-teal-100 w-fit mt-1">
+                            S: {staff.secondaryRole}
+                          </span>
+                        )}
+                      </div>
                     </td>
                     <td className="px-6 py-4">
-                      Block {staff.block?.name || 'N/A'}
+                      Block {staff.block?.name || 'N/A'} {staff.floor !== null && staff.floor !== undefined ? `(Floor ${staff.floor})` : '(Floor: Unassigned)'}
                     </td>
                     <td className="px-6 py-4">
                       <span className={`

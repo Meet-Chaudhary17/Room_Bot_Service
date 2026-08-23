@@ -50,7 +50,8 @@ export const adminController = {
       isActive = req.body.status === 'Active';
     }
     const statusStr = isActive ? 'Active' : 'Blocked';
-    await adminService.updateStaffStatus(staffId, statusStr, getAdminId(req), getIpAddress(req));
+    const floor = req.body.floor !== undefined ? Number(req.body.floor) : undefined;
+    await adminService.updateStaffStatus(staffId, statusStr, floor, getAdminId(req), getIpAddress(req));
     res.json({ success: true, message: 'Staff status updated successfully.' });
   }),
 

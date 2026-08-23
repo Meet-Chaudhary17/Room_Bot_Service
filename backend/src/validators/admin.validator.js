@@ -9,7 +9,8 @@ export const studentStatusUpdate = z.object({
 
 export const staffStatusUpdate = z.object({
   status: z.enum(['Active', 'Blocked']).optional(),
-  isActive: z.boolean().optional()
+  isActive: z.boolean().optional(),
+  floor: z.coerce.number().int().positive().optional().nullable()
 }).refine(data => data.status !== undefined || data.isActive !== undefined, {
   message: "Either 'status' or 'isActive' must be provided."
 });

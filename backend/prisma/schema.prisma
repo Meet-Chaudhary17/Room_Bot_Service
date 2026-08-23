@@ -75,6 +75,7 @@ model Student {
   email              String           @unique @db.VarChar(150)
   phoneNumber        String?          @db.VarChar(20) @map("phone_number")
   roomNumber         String           @db.VarChar(20) @map("room_number")
+  floor              Int              @default(0)
   blockId            Int              @map("block_id")
   isBlocked          Boolean          @default(false) @map("is_blocked")
   createdAt          DateTime         @default(now()) @map("created_at")
@@ -93,6 +94,10 @@ model Staff {
   fullName         String           @db.VarChar(100) @map("full_name")
   email            String           @unique @db.VarChar(150)
   serviceRole      ServiceRole      @map("service_role")
+  primaryRole      ServiceRole      @default(CLEANING) @map("primary_role")
+  secondaryRole    ServiceRole?     @map("secondary_role")
+  floor            Int?
+  currentWorkload  Float            @default(0.0) @map("current_workload")
   blockId          Int              @map("block_id")
   isActive         Boolean          @default(true) @map("is_active")
   phoneNumber      String?          @db.VarChar(20) @map("phone_number")
@@ -101,6 +106,7 @@ model Staff {
   block            HostelBlock      @relation(fields: [blockId], references: [id], onUpdate: Cascade, onDelete: Restrict)
   assignedRequests ServiceRequest[] @relation("AssignedStaff")
   feedback         Feedback[]
+  categoryStats    StaffCategoryStats[]
 
   @@index([blockId])
   @@index([serviceRole])
@@ -163,6 +169,7 @@ model ServiceCategory {
   createdAt    DateTime         @default(now()) @map("created_at")
   updatedAt    DateTime         @updatedAt @map("updated_at")
   requests     ServiceRequest[]
+  staffStats   StaffCategoryStats[]
 
   @@map("service_category")
 }
@@ -181,6 +188,7 @@ model ServiceRequest {
   startedAt       DateTime?     @map("started_at")
   completedAt     DateTime?     @map("completed_at")
   cancelledAt     DateTime?     @map("cancelled_at")
+  pausedDuration  Int?          @map("paused_duration")
   createdAt       DateTime      @default(now()) @map("created_at")
   updatedAt       DateTime      @updatedAt @map("updated_at")
   student         Student       @relation(fields: [studentId], references: [id], onUpdate: Cascade, onDelete: Restrict)
@@ -284,5 +292,18 @@ model Notification {
   @@index([role, userId, isRead])
   @@index([createdAt])
   @@map("notification")
+}
+
+model StaffCategoryStats {
+  id             Int             @id @default(autoincrement())
+  staffId        Int             @map("staff_id")
+  categoryId     Int             @map("category_id")
+  completedCount Int             @default(0) @map("completed_count")
+  averageTime    Float           @default(0.0) @map("average_time")
+  staff          Staff           @relation(fields: [staffId], references: [id], onDelete: Cascade)
+  category       ServiceCategory @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+
+  @@unique([staffId, categoryId])
+  @@map("staff_category_stats")
 }
 
