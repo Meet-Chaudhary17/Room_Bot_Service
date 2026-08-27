@@ -318,7 +318,7 @@ export class StudentRepository extends BaseRepository {
       }
 
       return request;
-    });
+    }, { timeout: 20000 });
   }
   cancelRequest(id, studentId) { return this.prisma.serviceRequest.updateMany({ where: { id, studentId, requestStatus: { in: ['PENDING', 'ASSIGNED'] } }, data: { requestStatus: 'CANCELLED', cancelledAt: new Date() } }); }
   createComplaint(data) { return this.prisma.complaint.create({ data }); }

@@ -238,7 +238,7 @@ export class StaffRepository extends BaseRepository {
       }
 
       await updateStaffWorkload(tx, staffId);
-    });
+    }, { timeout: 20000 });
   }
 
   async serviceHistory(staffId, { page = 1, limit = 10 } = {}) {
