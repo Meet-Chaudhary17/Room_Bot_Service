@@ -1,5 +1,6 @@
 import { BaseRepository } from './base.repository.js';
 import { AppError } from '../utils/app-error.js';
+import { allocationEngine } from '../services/allocation-engine.service.js';
 
 const ROLE_TO_INDEX = {
   CLEANING: 0,
@@ -194,7 +195,26 @@ async function updateStaffWorkload(tx, staffId) {
 export class StudentRepository extends BaseRepository {
   profile(id) { return this.prisma.student.findUnique({ where: { id }, include: { block: true } }); }
   updateProfile(id, data) { return this.prisma.student.update({ where: { id }, data }); }
-  requests(studentId, where = {}) { return this.prisma.serviceRequest.findMany({ where: { studentId, ...where }, include: { category: true, assignedStaff: { select: { id: true, fullName: true } } }, orderBy: { createdAt: 'desc' } }); }
+  async requests(studentId, where = {}) {
+    const dbRequests = await this.prisma.serviceRequest.findMany({
+      where: { studentId, ...where },
+      include: { category: true, assignedStaff: { select: { id: true, fullName: true } } },
+      orderBy: { createdAt: 'desc' }
+    });
+    const uncommitted = allocationEngine.getUncommittedForStudent(studentId);
+    if (!uncommitted || uncommitted.length === 0) return dbRequests;
+
+    const existingIds = new Set(dbRequests.map(r => r.id));
+    const existingRooms = new Set(dbRequests.map(r => `${r.roomNumber}_${r.categoryId}`));
+
+    const extra = uncommitted.filter(r => {
+      if (r.persistedDbId && existingIds.has(r.persistedDbId)) return false;
+      if (existingRooms.has(`${r.roomNumber}_${r.categoryId}`)) return false;
+      return true;
+    });
+
+    return [...extra, ...dbRequests];
+  }
   request(id, studentId) { return this.prisma.serviceRequest.findFirst({ where: { id, studentId }, include: { category: true, feedback: true } }); }
   
   createRequest(data) {
