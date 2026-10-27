@@ -309,7 +309,8 @@ export default function Dashboard() {
                       variant="primary" 
                       size="sm" 
                       onClick={() => handleStartWork(req.id)}
-                      loading={startingRequestId === req.id}
+                      loading={Boolean(startingRequestId && startingRequestId === req.id)}
+                      disabled={Boolean(startingRequestId && startingRequestId !== req.id)}
                       icon={Play}
                     >
                       Start Work
@@ -321,6 +322,7 @@ export default function Dashboard() {
                       variant="primary" 
                       size="sm" 
                       onClick={() => handleStartCompletion(req.id)}
+                      disabled={startingRequestId !== null}
                       icon={CheckCircle2}
                     >
                       Complete
