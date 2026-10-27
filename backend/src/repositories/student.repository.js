@@ -51,6 +51,8 @@ async function getRecencyAdjustment(tx, categoryId, serviceRole) {
   return alpha_k;
 }
 
+const studentCountCache = new Map();
+
 async function getBlockSuppression(tx, categoryId, blockId) {
   const activeInBlock = await tx.serviceRequest.count({
     where: {
@@ -59,9 +61,19 @@ async function getBlockSuppression(tx, categoryId, blockId) {
       requestStatus: { in: ['PENDING', 'ASSIGNED', 'IN_PROGRESS'] }
     }
   });
-  const totalStudentsInBlock = await tx.student.count({
-    where: { blockId }
-  });
+
+  const now = Date.now();
+  const cached = studentCountCache.get(blockId);
+  let totalStudentsInBlock;
+  if (cached && cached.expiresAt > now) {
+    totalStudentsInBlock = cached.count;
+  } else {
+    totalStudentsInBlock = await tx.student.count({
+      where: { blockId }
+    });
+    studentCountCache.set(blockId, { count: totalStudentsInBlock, expiresAt: now + 30000 });
+  }
+
   const N_block = Math.max(totalStudentsInBlock, 1);
   return Math.max(0, (N_block - activeInBlock) / N_block);
 }
@@ -102,7 +114,7 @@ async function getFutureWorkload(tx, staff, requestedServiceRole, recencyAdj, bl
   return futureWorkload;
 }
 
-async function getSkillScarcity(tx, staff, eligibleStaffMembers, categoryRole) {
+function getSkillScarcity(staff, allActiveStaff, categoryRole) {
   const getAlpha = (s) => {
     if (!s.isActive) return 0;
     if (s.currentWorkload === 0) return 1.0;
@@ -120,7 +132,7 @@ async function getSkillScarcity(tx, staff, eligibleStaffMembers, categoryRole) {
     return sum;
   };
 
-  const allStaff = await tx.staff.findMany({ where: { isActive: true } });
+  const allStaff = allActiveStaff;
 
   const c_r = categoryRole;
   const K_i = [];
@@ -154,11 +166,17 @@ async function updateStaffWorkload(tx, staffId) {
     include: { category: true }
   });
 
+  const categoryIds = [...new Set(assigned.map(r => r.categoryId))];
+  const statsList = categoryIds.length > 0
+    ? await tx.staffCategoryStats.findMany({
+        where: { staffId, categoryId: { in: categoryIds } }
+      })
+    : [];
+  const statsMap = new Map(statsList.map(s => [s.categoryId, s]));
+
   let workload = 0;
   for (const req of assigned) {
-    const stats = await tx.staffCategoryStats.findUnique({
-      where: { staffId_categoryId: { staffId, categoryId: req.categoryId } }
-    });
+    const stats = statsMap.get(req.categoryId);
     const avg = stats && stats.completedCount > 0 ? stats.averageTime : 0;
     if (avg > 0) {
       workload += avg;
@@ -225,10 +243,16 @@ export class StudentRepository extends BaseRepository {
         const recencyAdj = await getRecencyAdjustment(tx, data.categoryId, category.serviceRole);
         const blockSupp = await getBlockSuppression(tx, data.categoryId, student.blockId);
 
+        const staffIds = staffMembers.map(s => s.id);
+        const allStats = await tx.staffCategoryStats.findMany({
+          where: { staffId: { in: staffIds }, categoryId: data.categoryId }
+        });
+        const statsMap = new Map(allStats.map(s => [s.staffId, s]));
+
+        const allActiveStaff = await tx.staff.findMany({ where: { isActive: true } });
+
         for (const staff of staffMembers) {
-          const stats = await tx.staffCategoryStats.findUnique({
-            where: { staffId_categoryId: { staffId: staff.id, categoryId: data.categoryId } }
-          });
+          const stats = statsMap.get(staff.id);
           const rawF1 = stats && stats.completedCount > 0 ? stats.averageTime : 0;
 
           const rawF2 = staff.currentWorkload;
@@ -236,7 +260,7 @@ export class StudentRepository extends BaseRepository {
           const estTime = rawF1 > 0 ? rawF1 : getDefaultTime(category.serviceRole);
           const rawF3 = await getFutureWorkload(tx, staff, category.serviceRole, recencyAdj, blockSupp, estTime);
 
-          const rawF4 = await getSkillScarcity(tx, staff, staffMembers, category.serviceRole);
+          const rawF4 = getSkillScarcity(staff, allActiveStaff, category.serviceRole);
 
           const staffFloor = staff.floor !== null ? staff.floor : 1;
           const rawF5 = Math.abs(staffFloor - student.floor);

@@ -17,11 +17,17 @@ async function updateStaffWorkload(tx, staffId) {
     include: { category: true }
   });
 
+  const categoryIds = [...new Set(assigned.map(r => r.categoryId))];
+  const statsList = categoryIds.length > 0
+    ? await tx.staffCategoryStats.findMany({
+        where: { staffId, categoryId: { in: categoryIds } }
+      })
+    : [];
+  const statsMap = new Map(statsList.map(s => [s.categoryId, s]));
+
   let workload = 0;
   for (const req of assigned) {
-    const stats = await tx.staffCategoryStats.findUnique({
-      where: { staffId_categoryId: { staffId, categoryId: req.categoryId } }
-    });
+    const stats = statsMap.get(req.categoryId);
     const avg = stats && stats.completedCount > 0 ? stats.averageTime : 0;
     if (avg > 0) {
       workload += avg;
