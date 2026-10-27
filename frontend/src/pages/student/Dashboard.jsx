@@ -39,7 +39,10 @@ export default function Dashboard() {
     const fetchDashboardData = async () => {
       setLoading(true);
       try {
-        const reqRes = await getRequestHistory({ limit: 10 });
+        const [reqRes, compRes] = await Promise.all([
+          getRequestHistory({ limit: 10 }),
+          getComplaints()
+        ]);
         const reqs = Array.isArray(reqRes.data) ? reqRes.data : (reqRes.data?.requests || reqRes.data || []);
         setRequests(reqs);
 
@@ -60,8 +63,8 @@ export default function Dashboard() {
         }
 
         // Fetch complaints to get count
-        const compRes = await getComplaints();
-        setComplaintCount(compRes.data.length || 0);
+
+        setComplaintCount(compRes.data?.length || 0);
       } catch (err) {
         setError('Failed to load dashboard metrics. Please reload.');
       } finally {

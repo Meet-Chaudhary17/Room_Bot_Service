@@ -9,6 +9,20 @@ const server = app.listen(env.PORT, () => {
   allocationEngine.ensureInitialized().catch(err => {
     logger.error({ err: err.message }, 'AllocationEngine warmup error');
   });
+
+  // Keep-alive ping for Render free tier so it never sleeps
+  const keepAliveUrl = process.env.RENDER_EXTERNAL_URL ? `${process.env.RENDER_EXTERNAL_URL}/health` : null;
+  if (keepAliveUrl) {
+    logger.info({ keepAliveUrl }, 'Configured Render self-ping keep-alive');
+    setInterval(async () => {
+      try {
+        await fetch(keepAliveUrl);
+        logger.info('Keep-alive ping sent');
+      } catch (e) {
+        // Ignore background ping errors
+      }
+    }, 10 * 60 * 1000); // 10 minutes
+  }
 });
 
 async function shutdown(signal) {

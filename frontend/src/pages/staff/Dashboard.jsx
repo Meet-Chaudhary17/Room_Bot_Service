@@ -53,7 +53,10 @@ export default function Dashboard() {
   const loadDashboardData = async () => {
     setLoading(true);
     try {
-      const dashRes = await getDashboard();
+      const [dashRes, reqRes] = await Promise.all([
+        getDashboard(),
+        getAssignedRequests({ limit: 20 })
+      ]);
       setMetrics({
         pending: dashRes.data.totalAssigned || 0, // wait! In staff stats, totalAssigned represents pending tasks
         inProgress: dashRes.data.inProgress || 0,
@@ -61,7 +64,7 @@ export default function Dashboard() {
         rating: dashRes.data.ratingAverage || 5.0
       });
 
-      const reqRes = await getAssignedRequests({ limit: 20 });
+
       const reqs = reqRes.data.requests || [];
       setRequests(reqs);
       applyFilter(reqs, activeTab);

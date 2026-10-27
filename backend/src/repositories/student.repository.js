@@ -195,11 +195,14 @@ async function updateStaffWorkload(tx, staffId) {
 export class StudentRepository extends BaseRepository {
   profile(id) { return this.prisma.student.findUnique({ where: { id }, include: { block: true } }); }
   updateProfile(id, data) { return this.prisma.student.update({ where: { id }, data }); }
-  async requests(studentId, where = {}) {
+  async requests(studentId, options = {}) {
+    const { take, skip, ...where } = options;
     const dbRequests = await this.prisma.serviceRequest.findMany({
       where: { studentId, ...where },
       include: { category: true, assignedStaff: { select: { id: true, fullName: true } } },
-      orderBy: { createdAt: 'desc' }
+      orderBy: { createdAt: 'desc' },
+      ...(take !== undefined && { take }),
+      ...(skip !== undefined && { skip })
     });
     const uncommitted = allocationEngine.getUncommittedForStudent(studentId);
     if (!uncommitted || uncommitted.length === 0) return dbRequests;

@@ -14,13 +14,26 @@ const cleanBlockName = (blockName) => {
 
 export const staffService = {
   async getDashboard(staffId) {
-    const stats = await repository.dashboardStats(staffId);
-    const { items: recentRequests } = await repository.assignedRequests(staffId, { limit: 5 });
+    const [stats, recentRequests] = await Promise.all([
+      repository.dashboardStats(staffId),
+      prisma.serviceRequest.findMany({
+        where: { assignedStaffId: staffId },
+        select: {
+          id: true,
+          roomNumber: true,
+          requestStatus: true,
+          assignedAt: true,
+          category: { select: { categoryName: true } }
+        },
+        orderBy: { createdAt: 'desc' },
+        take: 5
+      })
+    ]);
 
     const formattedRecent = recentRequests.map(req => ({
       requestId: req.id,
       studentRoom: req.roomNumber,
-      serviceCategory: req.category.categoryName,
+      serviceCategory: req.category?.categoryName || 'General',
       status: req.requestStatus,
       assignedDate: req.assignedAt ? req.assignedAt.toISOString().split('T')[0] : null
     }));
@@ -138,16 +151,16 @@ export const staffService = {
   },
 
   async startWork(requestId, staffId) {
-    const req = await repository.requestDetails(requestId, staffId);
-    if (!req) {
-      throw new AppError(404, 'REQUEST_NOT_FOUND', 'Service request not found or not assigned to you.');
+    const result = await repository.updateRequestStatus(requestId, staffId, 'IN_PROGRESS', new Date());
+    if (result.count === 0) {
+      const req = await repository.requestDetails(requestId, staffId);
+      if (!req) {
+        throw new AppError(404, 'REQUEST_NOT_FOUND', 'Service request not found or not assigned to you.');
+      }
+      if (req.requestStatus !== 'ASSIGNED') {
+        throw new AppError(409, 'INVALID_STATUS_TRANSITION', 'Only requests with Assigned status can be started.');
+      }
     }
-
-    if (req.requestStatus !== 'ASSIGNED') {
-      throw new AppError(409, 'INVALID_STATUS_TRANSITION', 'Only requests with Assigned status can be started.');
-    }
-
-    await repository.updateRequestStatus(requestId, staffId, 'IN_PROGRESS', new Date());
   },
 
   async getRequestOccupants(requestId, staffId) {
@@ -201,10 +214,12 @@ export const staffService = {
       expiresAt
     });
 
-    await emailService.sendOtp({
+    emailService.sendOtp({
       to: targetStudent.email,
       purpose: 'COMPLETION',
       otp: otpCode
+    }).catch(err => {
+      logger.error('Failed to send completion OTP email in background:', err);
     });
   },
 

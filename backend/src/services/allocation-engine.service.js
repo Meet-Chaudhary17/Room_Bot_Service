@@ -53,6 +53,7 @@ class AllocationEngineService {
   async init() {
     try {
       logger.info('AllocationEngineService: Initializing in-memory state from PostgreSQL...');
+      await prisma.$connect();
       const [cats, staffList, stats, students, activeReqs] = await Promise.all([
         prisma.serviceCategory.findMany(),
         prisma.staff.findMany({ where: { isActive: true } }),
@@ -210,8 +211,12 @@ class AllocationEngineService {
     return futureWorkload;
   }
 
-  async createRequestFast(studentId, { title, description, category_id, room_number }) {
+  async createRequestFast(studentId, payload) {
     await this.ensureInitialized();
+    const title = payload.title;
+    const description = payload.description;
+    const category_id = payload.category_id !== undefined ? Number(payload.category_id) : Number(payload.categoryId);
+    const room_number = payload.room_number !== undefined ? String(payload.room_number) : String(payload.roomNumber);
 
     const student = await this.getStudent(studentId);
     if (!student) {

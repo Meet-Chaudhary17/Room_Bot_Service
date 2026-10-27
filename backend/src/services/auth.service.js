@@ -22,7 +22,7 @@ async function register(role, payload) {
     }
     await repository.deleteUnverifiedUser(payload.email);
   }
-  const passwordHash = await bcrypt.hash(payload.password, 12);
+  const passwordHash = await bcrypt.hash(payload.password, 10);
   const code = otpCode();
   const registrationPayload = {
     registration_number: payload.registration_number,
@@ -52,9 +52,9 @@ const cleanBlockName = (blockName) => {
   return blockName.replace(/block/gi, '').trim();
 };
 
-async function login(role, identifier, password) {
-  const profile = role === roles.ADMINISTRATOR ? await repository.findAdmin(identifier) : null;
-  const credential = await repository.findCredential(role === roles.ADMINISTRATOR ? profile?.email : identifier);
+async function login(role, identifier, password, preloadedCredential = null) {
+  const profile = role === roles.ADMINISTRATOR && !preloadedCredential ? await repository.findAdmin(identifier) : null;
+  const credential = preloadedCredential || await repository.findCredential(role === roles.ADMINISTRATOR ? profile?.email : identifier);
   if (!credential || credential.userType !== role || !(await bcrypt.compare(password, credential.passwordHash)))
     throw new AppError(401, 'INVALID_CREDENTIALS', 'Invalid credentials.');
   if (!credential.emailVerified)
@@ -78,9 +78,9 @@ async function login(role, identifier, password) {
 export const authService = {
   registerStudent: (p) => register(roles.STUDENT, p),
   registerStaff: (p) => register(roles.STAFF, p),
-  loginStudent: (p) => login(roles.STUDENT, p.email, p.password),
-  loginStaff: (p) => login(roles.STAFF, p.email, p.password),
-  loginAdmin: (p) => login(roles.ADMINISTRATOR, p.username, p.password),
+  loginStudent: (p, cred) => login(roles.STUDENT, p.email, p.password, cred),
+  loginStaff: (p, cred) => login(roles.STAFF, p.email, p.password, cred),
+  loginAdmin: (p, cred) => login(roles.ADMINISTRATOR, p.username, p.password, cred),
   async sendOtp({ email, purpose = 'REGISTRATION' }) {
     if (purpose === 'REGISTRATION') {
       const record = await repository.findLatestRegistrationOtp(email);

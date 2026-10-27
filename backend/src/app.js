@@ -45,6 +45,7 @@ app.use(cors({
 app.use(express.json({ limit: '100kb' }));
 app.use(requestId);
 app.use(morgan('combined', { stream: { write: (message) => logger.info({ http: message.trim() }, 'HTTP request') } }));
+app.get('/health', (req, res) => res.json({ status: 'ok', timestamp: new Date().toISOString() }));
 app.use('/api', apiRateLimiter);
 app.use('/api/v1', apiRouter);
 app.use(notFoundHandler);

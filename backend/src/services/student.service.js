@@ -15,5 +15,12 @@ export const studentService = {
   createComplaint: (studentId, data) => repository.createComplaint({ studentId, title: data.title, description: data.description, categoryId: data.category_id, priority: data.priority }),
   listComplaints: (id) => repository.complaints(id),
   async createFeedback(studentId, data) { const request = await repository.request(data.request_id, studentId); if (!request || request.requestStatus !== 'COMPLETED' || !request.assignedStaffId) throw new AppError(409, 'FEEDBACK_NOT_ELIGIBLE', 'Feedback is allowed only for completed assigned requests.'); if (request.feedback) throw new AppError(409, 'FEEDBACK_EXISTS', 'Feedback has already been submitted.'); return repository.createFeedback({ requestId: request.id, studentId, staffId: request.assignedStaffId, rating: data.rating, comments: data.comments }); },
-  async dashboard(id) { return { profile: await this.profile(id), requestStats: await repository.stats(id), recentRequests: await repository.requests(id, {}) }; },
+  async dashboard(id) {
+    const [profile, requestStats, recentRequests] = await Promise.all([
+      this.profile(id),
+      repository.stats(id),
+      repository.requests(id, { take: 5 })
+    ]);
+    return { profile, requestStats, recentRequests };
+  },
 };

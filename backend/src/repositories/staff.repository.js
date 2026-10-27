@@ -89,16 +89,31 @@ export class StaffRepository extends BaseRepository {
 
     const skip = (page - 1) * limit;
 
-    const [items, total] = await this.prisma.$transaction([
+    const [items, total] = await Promise.all([
       this.prisma.serviceRequest.findMany({
         where,
-        include: {
-          student: {
-            include: {
-              block: true
-            }
+        select: {
+          id: true,
+          title: true,
+          description: true,
+          requestStatus: true,
+          priority: true,
+          roomNumber: true,
+          categoryId: true,
+          createdAt: true,
+          assignedAt: true,
+          category: {
+            select: { id: true, categoryName: true }
           },
-          category: true
+          student: {
+            select: {
+              id: true,
+              fullName: true,
+              email: true,
+              roomNumber: true,
+              block: { select: { id: true, blockName: true } }
+            }
+          }
         },
         orderBy: { createdAt: 'desc' },
         skip,
@@ -273,45 +288,31 @@ export class StaffRepository extends BaseRepository {
   }
 
   async dashboardStats(staffId) {
-    // Find assigned (Assigned or In Progress)
-    const assignedRequests = await this.prisma.serviceRequest.count({
-      where: {
-        assignedStaffId: staffId,
-        requestStatus: { in: ['ASSIGNED', 'IN_PROGRESS'] }
-      }
-    });
-
-    // Find pending (Assigned but not started)
-    const pendingRequests = await this.prisma.serviceRequest.count({
-      where: {
-        assignedStaffId: staffId,
-        requestStatus: 'ASSIGNED'
-      }
-    });
-
-    // Find completed today
     const todayStart = new Date();
     todayStart.setHours(0, 0, 0, 0);
-    const completedToday = await this.prisma.serviceRequest.count({
-      where: {
-        assignedStaffId: staffId,
-        requestStatus: 'COMPLETED',
-        completedAt: { gte: todayStart }
-      }
-    });
 
-    // Average rating
-    const ratingAggregate = await this.prisma.feedback.aggregate({
-      _avg: { rating: true },
-      where: { staffId }
-    });
+    const [statsResult, ratingAggregate] = await Promise.all([
+      this.prisma.$queryRaw`
+        SELECT 
+          COUNT(*) FILTER (WHERE request_status IN ('ASSIGNED', 'IN_PROGRESS'))::int AS "assignedRequests",
+          COUNT(*) FILTER (WHERE request_status = 'ASSIGNED')::int AS "pendingRequests",
+          COUNT(*) FILTER (WHERE request_status = 'COMPLETED' AND completed_at >= ${todayStart})::int AS "completedToday"
+        FROM service_request
+        WHERE assigned_staff_id = ${staffId}
+      `,
+      this.prisma.feedback.aggregate({
+        _avg: { rating: true },
+        where: { staffId }
+      })
+    ]);
 
+    const raw = (statsResult && statsResult[0]) || { assignedRequests: 0, pendingRequests: 0, completedToday: 0 };
     const averageRating = ratingAggregate._avg.rating ? parseFloat(ratingAggregate._avg.rating.toFixed(1)) : 0;
 
     return {
-      assignedRequests,
-      pendingRequests,
-      completedToday,
+      assignedRequests: raw.assignedRequests || 0,
+      pendingRequests: raw.pendingRequests || 0,
+      completedToday: raw.completedToday || 0,
       averageRating
     };
   }
