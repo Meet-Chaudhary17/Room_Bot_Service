@@ -34,6 +34,7 @@ export default function Dashboard() {
   const [activeTab, setActiveTab] = useState('ALL'); // ALL, PENDING, IN_PROGRESS
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState(false);
+  const [startingRequestId, setStartingRequestId] = useState(null);
 
   // OTP Modal states
   const [otpModalOpen, setOtpModalOpen] = useState(false);
@@ -91,7 +92,8 @@ export default function Dashboard() {
   };
 
   const handleStartWork = async (requestId) => {
-    setActionLoading(true);
+    if (startingRequestId) return;
+    setStartingRequestId(requestId);
     try {
       await startRequestWork(requestId);
       toast.success('Work started on service request!');
@@ -99,7 +101,7 @@ export default function Dashboard() {
     } catch (err) {
       toast.error(err.message || 'Failed to start request.');
     } finally {
-      setActionLoading(false);
+      setStartingRequestId(null);
     }
   };
 
@@ -307,7 +309,7 @@ export default function Dashboard() {
                       variant="primary" 
                       size="sm" 
                       onClick={() => handleStartWork(req.id)}
-                      loading={actionLoading}
+                      loading={startingRequestId === req.id}
                       icon={Play}
                     >
                       Start Work
@@ -319,7 +321,6 @@ export default function Dashboard() {
                       variant="primary" 
                       size="sm" 
                       onClick={() => handleStartCompletion(req.id)}
-                      loading={actionLoading}
                       icon={CheckCircle2}
                     >
                       Complete
