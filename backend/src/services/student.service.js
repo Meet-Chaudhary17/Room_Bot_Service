@@ -11,7 +11,14 @@ export const studentService = {
     return allocationEngine.createRequestFast(studentId, data);
   },
   listRequests: (id) => repository.requests(id),
-  async cancelRequest(id, studentId) { const result = await repository.cancelRequest(id, studentId); if (!result.count) throw new AppError(409, 'REQUEST_NOT_CANCELLABLE', 'Only pending or assigned requests can be cancelled.'); },
+  async cancelRequest(id, studentId) {
+    const request = await repository.request(id, studentId);
+    const result = await repository.cancelRequest(id, studentId);
+    if (!result.count) throw new AppError(409, 'REQUEST_NOT_CANCELLABLE', 'Only pending or assigned requests can be cancelled.');
+    if (request) {
+      allocationEngine.notifyRequestResolved(request.roomNumber, request.categoryId, request.assignedStaffId);
+    }
+  },
   createComplaint: (studentId, data) => repository.createComplaint({ studentId, title: data.title, description: data.description, categoryId: data.category_id, priority: data.priority }),
   listComplaints: (id) => repository.complaints(id),
   async createFeedback(studentId, data) { const request = await repository.request(data.request_id, studentId); if (!request || request.requestStatus !== 'COMPLETED' || !request.assignedStaffId) throw new AppError(409, 'FEEDBACK_NOT_ELIGIBLE', 'Feedback is allowed only for completed assigned requests.'); if (request.feedback) throw new AppError(409, 'FEEDBACK_EXISTS', 'Feedback has already been submitted.'); return repository.createFeedback({ requestId: request.id, studentId, staffId: request.assignedStaffId, rating: data.rating, comments: data.comments }); },

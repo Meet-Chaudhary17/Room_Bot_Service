@@ -230,7 +230,20 @@ class AllocationEngineService {
 
     const roomKey = `${room_number}_${category_id}`;
     if (this.activeRoomRequests.has(roomKey)) {
-      throw new AppError(400, 'DUPLICATE_REQUEST', 'Your roommate has already applied for this service request. You cannot submit another request of the same type until the current request is completed.');
+      const activeInDb = await prisma.serviceRequest.findFirst({
+        where: {
+          roomNumber: room_number,
+          categoryId: category_id,
+          requestStatus: { in: ['PENDING', 'ASSIGNED', 'IN_PROGRESS'] }
+        },
+        select: { id: true }
+      });
+      const inQueue = this.queue.some(item => item.data.roomNumber === room_number && item.data.categoryId === category_id);
+      if (activeInDb || inQueue) {
+        throw new AppError(400, 'DUPLICATE_REQUEST', 'Your roommate has already applied for this service request. You cannot submit another request of the same type until the current request is completed.');
+      } else {
+        this.activeRoomRequests.delete(roomKey);
+      }
     }
 
     const blockStaff = this.staffByBlock.get(student.blockId) || [];

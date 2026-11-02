@@ -4,6 +4,7 @@ import { env } from '../config/env.js';
 import { AppError } from '../utils/app-error.js';
 import { StaffRepository } from '../repositories/staff.repository.js';
 import { emailService } from './email.service.js';
+import { allocationEngine } from './allocation-engine.service.js';
 
 const repository = new StaffRepository(prisma);
 
@@ -259,6 +260,7 @@ export const staffService = {
     }
 
     await repository.completeRequest(requestId, staffId, latestOtp.id, new Date());
+    allocationEngine.notifyRequestResolved(req.roomNumber, req.categoryId, staffId);
   },
 
   async getHistory(staffId, filters) {
