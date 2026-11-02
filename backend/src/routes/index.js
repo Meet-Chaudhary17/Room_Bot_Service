@@ -59,9 +59,16 @@ apiRouter.patch('/admin/students/:studentId/status', ...adminOnly, validate(admi
 apiRouter.patch('/admin/students/:studentId/block', ...adminOnly, validate(adminStudentStatus), adminController.updateStudentStatus);
 apiRouter.patch('/admin/staff/:staffId/status', ...adminOnly, validate(adminStaffStatus), adminController.updateStaffStatus);
 apiRouter.get('/admin/service-requests', ...adminOnly, adminController.requests);
+apiRouter.get('/admin/requests', ...adminOnly, adminController.requestsForFrontend);
+apiRouter.patch('/admin/requests/:requestId/reassign', ...adminOnly, adminController.reassignRequest);
+apiRouter.get('/admin/blocks', ...adminOnly, adminController.blocks);
+apiRouter.post('/admin/blocks', ...adminOnly, adminController.createBlock);
+apiRouter.delete('/admin/blocks/:blockId', ...adminOnly, adminController.deleteBlock);
+apiRouter.get('/admin/service-types', ...adminOnly, adminController.serviceTypes);
 apiRouter.get('/admin/complaints', ...adminOnly, adminController.complaints);
 apiRouter.patch('/admin/complaints/:complaintId/status', ...adminOnly, validate(adminComplaintResolve), adminController.resolveComplaint);
 apiRouter.get('/admin/feedback', ...adminOnly, adminController.feedback);
+apiRouter.get('/admin/feedbacks', ...adminOnly, adminController.feedback);
 apiRouter.get('/admin/analytics', ...adminOnly, adminController.analytics);
 apiRouter.get('/admin/profile', ...adminOnly, adminController.profile);
 apiRouter.get('/admin/audit-logs', ...adminOnly, adminController.auditLogs);

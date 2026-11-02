@@ -68,6 +68,48 @@ export const adminController = {
     res.json({ success: true, data });
   }),
 
+  requestsForFrontend: asyncHandler(async (req, res) => {
+    const { status, block, serviceType, staffId, search, page, limit } = req.query;
+    const data = await adminService.listRequestsForAdmin({
+      status,
+      block,
+      serviceType,
+      staffId,
+      search,
+      page: page ? Number(page) : undefined,
+      limit: limit ? Number(limit) : undefined
+    });
+    res.json({ success: true, data });
+  }),
+
+  reassignRequest: asyncHandler(async (req, res) => {
+    const requestId = Number(req.params.requestId);
+    const staffId = Number(req.body.staffId);
+    await adminService.reassignRequest(requestId, staffId);
+    res.json({ success: true, message: 'Request reassigned successfully.' });
+  }),
+
+  blocks: asyncHandler(async (req, res) => {
+    const blocks = await adminService.listBlocks();
+    res.json({ success: true, data: { blocks } });
+  }),
+
+  createBlock: asyncHandler(async (req, res) => {
+    const block = await adminService.createBlock(req.body);
+    res.status(201).json({ success: true, message: 'Block created successfully.', data: { block } });
+  }),
+
+  deleteBlock: asyncHandler(async (req, res) => {
+    const blockId = Number(req.params.blockId);
+    await adminService.deleteBlock(blockId);
+    res.json({ success: true, message: 'Block deleted successfully.' });
+  }),
+
+  serviceTypes: asyncHandler(async (req, res) => {
+    const serviceTypes = await adminService.listServiceTypes();
+    res.json({ success: true, data: { serviceTypes } });
+  }),
+
   complaints: asyncHandler(async (req, res) => {
     const { status, category, block, page, limit } = req.query;
     const data = await adminService.listComplaints({

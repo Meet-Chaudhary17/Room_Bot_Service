@@ -181,7 +181,7 @@ export class AdminRepository extends BaseRepository {
     });
   }
 
-  async serviceRequests({ status, block, serviceType, staffId, page = 1, limit = 10 } = {}) {
+  async serviceRequests({ status, block, serviceType, staffId, search, page = 1, limit = 10 } = {}) {
     const where = {};
 
     if (status) {
@@ -199,6 +199,15 @@ export class AdminRepository extends BaseRepository {
 
     if (staffId) {
       where.assignedStaffId = Number(staffId);
+    }
+
+    if (search) {
+      where.OR = [
+        { roomNumber: { contains: search, mode: 'insensitive' } },
+        { title: { contains: search, mode: 'insensitive' } },
+        { description: { contains: search, mode: 'insensitive' } },
+        { student: { fullName: { contains: search, mode: 'insensitive' } } }
+      ];
     }
 
     const skip = (page - 1) * limit;

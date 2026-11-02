@@ -131,6 +131,132 @@ export const adminService = {
     }));
   },
 
+  async listRequestsForAdmin(filters) {
+    const { items, total } = await repository.serviceRequests(filters);
+    const limit = filters.limit || 10;
+    const page = filters.page || 1;
+    const totalPages = Math.ceil(total / limit) || 1;
+
+    const formatted = items.map(req => ({
+      id: String(req.id),
+      requestId: req.id,
+      title: req.title,
+      description: req.description,
+      status: req.requestStatus,
+      requestStatus: req.requestStatus,
+      priority: req.priority,
+      createdAt: req.createdAt,
+      assignedAt: req.assignedAt,
+      completedAt: req.completedAt,
+      serviceType: {
+        id: req.category?.id,
+        name: req.category?.categoryName || 'Service'
+      },
+      student: {
+        id: req.student?.id,
+        name: req.student?.fullName || 'Student',
+        fullName: req.student?.fullName || 'Student',
+        roomNumber: req.roomNumber || req.student?.roomNumber,
+        block: {
+          id: req.student?.block?.id,
+          name: req.student?.block?.blockName || 'N/A'
+        }
+      },
+      staff: req.assignedStaff ? {
+        id: req.assignedStaff.id,
+        name: req.assignedStaff.fullName,
+        fullName: req.assignedStaff.fullName
+      } : null
+    }));
+
+    return {
+      requests: formatted,
+      pagination: {
+        total,
+        page,
+        limit,
+        totalPages,
+        hasNextPage: page < totalPages,
+        hasPreviousPage: page > 1
+      }
+    };
+  },
+
+  async reassignRequest(requestId, staffId) {
+    const staff = await prisma.staff.findUnique({ where: { id: staffId } });
+    if (!staff) {
+      throw new AppError(404, 'STAFF_NOT_FOUND', 'Staff member not found.');
+    }
+    const request = await prisma.serviceRequest.findUnique({ where: { id: requestId } });
+    if (!request) {
+      throw new AppError(404, 'REQUEST_NOT_FOUND', 'Service request not found.');
+    }
+    await prisma.serviceRequest.update({
+      where: { id: requestId },
+      data: {
+        assignedStaffId: staffId,
+        requestStatus: 'ASSIGNED',
+        assignedAt: new Date()
+      }
+    });
+  },
+
+  async listBlocks() {
+    const blocks = await prisma.hostelBlock.findMany({
+      orderBy: { id: 'asc' }
+    });
+    return blocks.map(b => ({
+      id: b.id,
+      name: b.blockName,
+      blockName: b.blockName,
+      description: b.description
+    }));
+  },
+
+  async createBlock(data) {
+    const name = data.name?.trim() || data.blockName?.trim();
+    if (!name) {
+      throw new AppError(400, 'BLOCK_NAME_REQUIRED', 'Block name is required.');
+    }
+    const existing = await prisma.hostelBlock.findFirst({
+      where: { blockName: { equals: name, mode: 'insensitive' } }
+    });
+    if (existing) {
+      throw new AppError(409, 'BLOCK_EXISTS', 'A block with this name already exists.');
+    }
+    const block = await prisma.hostelBlock.create({
+      data: { blockName: name, description: data.description || null }
+    });
+    return {
+      id: block.id,
+      name: block.blockName,
+      blockName: block.blockName
+    };
+  },
+
+  async deleteBlock(blockId) {
+    const studentCount = await prisma.student.count({ where: { blockId } });
+    const staffCount = await prisma.staff.count({ where: { blockId } });
+    if (studentCount > 0 || staffCount > 0) {
+      throw new AppError(400, 'BLOCK_IN_USE', 'Cannot delete block with linked students or staff members.');
+    }
+    await prisma.hostelBlock.delete({ where: { id: blockId } });
+  },
+
+  async listServiceTypes() {
+    const types = await prisma.serviceCategory.findMany({
+      orderBy: { id: 'asc' }
+    });
+    return types.map(t => ({
+      id: t.id,
+      name: t.categoryName,
+      categoryName: t.categoryName,
+      description: t.description,
+      serviceRole: t.serviceRole,
+      isActive: t.isActive
+    }));
+  },
+
   async listComplaints(filters) {
     const { items } = await repository.complaints(filters);
 
